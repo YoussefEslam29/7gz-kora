@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ta7dy-El-La3eeba">
+  <defs>
+    <clipPath id="disk"><circle cx="256" cy="256" r="226"/></clipPath>
+    <clipPath id="ball"><circle cx="256" cy="256" r="151"/></clipPath>
+    <g id="patch">
+      <line x1="256" y1="206" x2="256" y2="160" stroke="#0B5D2E" stroke-width="9" stroke-linecap="round"/>
+      <polygon points="256,158 206.5,122.1 225.4,63.9 286.6,63.9 305.5,122.1" fill="#0B5D2E"/>
+    </g>
+  </defs>
+  <!-- Badge: dark green ring around a freshly mown pitch -->
+  <circle cx="256" cy="256" r="250" fill="#0B5D2E"/>
+  <g clip-path="url(#disk)">
+    <rect x="0" y="0" width="512" height="512" fill="#16A34A"/>
+    <rect x="70" y="0" width="62" height="512" fill="#15913F"/>
+    <rect x="194" y="0" width="62" height="512" fill="#15913F"/>
+    <rect x="318" y="0" width="62" height="512" fill="#15913F"/>
+  </g>
+  <!-- The ball -->
+  <circle cx="256" cy="256" r="152" fill="#FFFFFF"/>
+  <g clip-path="url(#ball)">
+    <use href="#patch"/>
+    <use href="#patch" transform="rotate(72 256 256)"/>
+    <use href="#patch" transform="rotate(144 256 256)"/>
+    <use href="#patch" transform="rotate(216 256 256)"/>
+    <use href="#patch" transform="rotate(288 256 256)"/>
+  </g>
+  <polygon points="256,206 303.6,240.6 285.4,296.4 226.6,296.4 208.4,240.6" fill="#0B5D2E"/>
+  <circle cx="256" cy="256" r="152" fill="none" stroke="#0B5D2E" stroke-width="10"/>
+</svg>

@@ -1,0 +1,111 @@
+@import "tailwindcss";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+
+/*
+  Design tokens. Brand: pitch green and white.
+  - Team A wears green, Team B wears the orange training bibs.
+  - Barlow Condensed (scoreboard numerals) for scores, ratings and headings.
+  - The system font for everything else (it handles Arabic names well).
+*/
+@theme {
+  --font-display: "Barlow Condensed", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", "Helvetica Neue", Arial, sans-serif;
+
+  --color-pitch: #16a34a;
+  --color-pitch-deep: #0b5d2e;
+  --color-gold: #eab308;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-team-a: var(--team-a);
+  --color-team-a-soft: var(--team-a-soft);
+  --color-team-b: var(--team-b);
+  --color-team-b-soft: var(--team-b-soft);
+  --color-danger: var(--danger);
+}
+
+:root {
+  color-scheme: light dark;
+  --ground: #eef3ef;
+  --card: #ffffff;
+  --ink: #0f1a14;
+  --muted: #55645a;
+  --line: #d9e3dc;
+  --primary: #0b5d2e;
+  --team-a: #15803d;
+  --team-a-soft: #dcfce7;
+  --team-b: #c2410c;
+  --team-b-soft: #ffedd5;
+  --danger: #b91c1c;
+  --stripe-1: #16a34a;
+  --stripe-2: #15913f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #08130c;
+    --card: #11211a;
+    --ink: #e6f0e9;
+    --muted: #96a89c;
+    --line: #22392c;
+    --primary: #15803d;
+    --team-a: #4ade80;
+    --team-a-soft: #12341f;
+    --team-b: #fb923c;
+    --team-b-soft: #3a2010;
+    --danger: #f87171;
+    --stripe-1: #0e4f27;
+    --stripe-2: #0c4522;
+  }
+}
+
+html,
+body {
+  background: var(--ground);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+/* The signature: mown-pitch stripes. */
+.pitch-stripes {
+  background-color: var(--stripe-1);
+  background-image: repeating-linear-gradient(90deg, var(--stripe-1) 0 44px, var(--stripe-2) 44px 88px);
+}
+
+/* Numbers that line up in tables and scoreboards. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small "pressed" feedback on taps. */
+.press {
+  transition: transform 80ms ease-out;
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press,
+  .press:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-pitch);
+  outline-offset: 2px;
+}

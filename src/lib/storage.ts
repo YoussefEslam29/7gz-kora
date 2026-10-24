@@ -19,8 +19,7 @@ export function writeLocal(key: string, value: string | null) {
 }
 
 export const KEYS = {
-  currentGroup: 'ta7dy.currentGroup',
-  /** Invite code from a shared link, kept while the person signs in. */
-  pendingInvite: 'ta7dy.pendingInvite',
-  installDismissed: 'ta7dy.installDismissed',
+  currentGroup: 'kora.currentGroup',
+  /** Invite code from a shared link, kept while the person installs and signs in. */
+  pendingInvite: 'kora.pendingInvite',
 }

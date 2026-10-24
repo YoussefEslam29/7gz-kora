@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
 import { Button, ErrorNote, Notice } from '../components/ui'
 import { errorMessage } from '../lib/format'
 import { isIos, isStandalone } from '../lib/pwa'
@@ -28,15 +27,12 @@ export default function SignIn() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <div className="pitch-stripes flex flex-col items-center px-6 pt-[calc(env(safe-area-inset-top)+3rem)] pb-10 text-center text-white">
-        <img src="/logo.svg" alt="" className="size-28 drop-shadow-lg" />
-        <h1 className="mt-5 font-display text-5xl font-bold tracking-wide">Ta7dy-El-La3eeba</h1>
-        <p className="mt-2 max-w-xs text-white/90">Rate every weekly match with the people who played it.</p>
-      </div>
-
-      <div className="mx-auto w-full max-w-sm flex-1 px-6 py-8">
-        <Button size="lg" className="w-full" busy={busy} onClick={signInWithGoogle}>
+    <main className="honeycomb flex min-h-dvh flex-col items-center justify-center px-6 pt-[env(safe-area-inset-top)] pb-[calc(env(safe-area-inset-bottom)+24px)] text-center">
+      <img src="/logo.svg" alt="" className="h-[170px]" />
+      {/* White lettering is allowed here only: it is the big logo lettering. */}
+      <h1 className="mt-2.5 mb-9 font-display text-[44px] leading-none text-white">7GZ-KORA</h1>
+      <div className="w-full max-w-sm">
+        <Button variant="black" size="lg" className="w-full text-base" busy={busy} onClick={signInWithGoogle}>
           <GoogleMark /> Continue with Google
         </Button>
         <ErrorNote message={error} />
@@ -47,17 +43,13 @@ export default function SignIn() {
           <button
             type="button"
             onClick={() => setShowEmail(true)}
-            className="mt-6 w-full text-center text-sm font-medium text-muted underline"
+            className="mt-6 min-h-12 w-full text-center text-sm font-semibold text-on-brand underline"
           >
             Trouble with Google? Sign in with an email code
           </button>
         )}
-
-        <p className="mt-10 text-center text-sm text-muted">
-          New here? <Link to="/install" className="font-semibold text-pitch underline">How to install the app</Link>
-        </p>
       </div>
-    </div>
+    </main>
   )
 }
 
@@ -97,8 +89,8 @@ function EmailCode() {
   }
 
   return (
-    <div className="mt-8 border-t border-line pt-6">
-      <h2 className="font-semibold">Sign in with an email code</h2>
+    <div className="mt-6 rounded-card border-2 border-[#0b0b0b] bg-paper p-4 text-left text-ink">
+      <h2 className="label">Sign in with an email code</h2>
       {!sent ? (
         <form onSubmit={sendCode} className="mt-3 space-y-3">
           <label className="block">
@@ -110,7 +102,7 @@ function EmailCode() {
               inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 h-12 w-full rounded-xl border border-line bg-card px-3 text-base"
+              className="mt-1 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 text-base"
             />
           </label>
           <Button type="submit" variant="secondary" className="w-full" busy={busy}>
@@ -129,7 +121,7 @@ function EmailCode() {
               pattern="[0-9]{6,10}"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              className="tabular mt-1 h-14 w-full rounded-xl border border-line bg-card px-3 text-center font-display text-3xl tracking-[0.3em]"
+              className="tabular mt-1 h-14 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 text-center font-display text-3xl tracking-[0.3em]"
             />
           </label>
           <Button type="submit" className="w-full" busy={busy}>

@@ -1,19 +1,33 @@
 -- =============================================================================
--- Ta7dy-El-La3eeba: demo data for testing
+-- 7GZ-KORA: demo data for testing
 --
--- Creates the group "Demo FC" with 12 fake players, 4 finished matches
--- (3 this year, 1 last year) and 1 match where voting is still open.
+-- Creates the group "Demo FC" with 12 fake players and these nights:
+--   * last season: one finished night (shows in the All-time tab only)
+--   * three finished nights this season; 4 people still owe for last week's
+--   * ten days ago: cancelled because of rain
+--   * yesterday: voting still open; 3 people have paid back so far
+--   * in 3 days: planned, with a 10-player limit: 10 in, 1 on the waiting
+--     list and 1 out, so you can see the waiting list
+-- Ahmed (player 3) collects the money every night: 600 EGP ÷ 12 = 50 each.
 --
--- Run it AFTER the 3 migration files, ideally in a separate test project.
+-- Run it AFTER the 4 migration files, ideally in a separate test project.
 -- To see it: sign in to the app, tap "Join a group" and enter  DEMO-KICK
 -- The first real person to join becomes the group's admin.
 --
 -- To remove it later:   delete from public.groups where name = 'Demo FC';
 -- =============================================================================
 
--- Helper that builds one match. pg_temp = it disappears when this run ends.
--- Player numbers (1-12) refer to positions in the players array.
-create or replace function pg_temp.seed_match(
+-- 20:00 in Cairo on the given day. pg_temp = these helpers disappear when
+-- this run ends.
+create or replace function pg_temp.night_start(p_day date)
+returns timestamptz
+language sql stable as $$
+  select (p_day + time '20:00') at time zone 'Africa/Cairo'
+$$;
+
+-- Builds one finished (or voting) night. Player numbers (1-12) refer to
+-- positions in the players array.
+create or replace function pg_temp.seed_night(
   p_group    uuid,
   p_players  uuid[],
   p_played   date,
@@ -23,7 +37,8 @@ create or replace function pg_temp.seed_match(
   p_gk_b     int,
   p_goals    int[],    -- pairs: scorer, assister (0 = no assist)
   p_status   text,     -- 'closed' or 'voting'
-  p_voters   int[]     -- who has voted (players 1-12)
+  p_voters   int[],    -- who has voted
+  p_unpaid   int[]     -- who hasn't paid Ahmed back yet
 ) returns uuid
 language plpgsql as $$
 declare
@@ -33,9 +48,11 @@ declare
   v_team  text;
   i       int;
 begin
-  insert into public.matches (group_id, played_at, location, status, voting_closes_at, closed_at)
+  insert into public.matches (group_id, played_at, starts_at, location, cost, collector_player_id,
+                              status, voting_closes_at, closed_at)
   values (
-    p_group, p_played, 'Club pitch 3', p_status,
+    p_group, p_played, pg_temp.night_start(p_played), 'Club pitch 3', 600, p_players[3],
+    p_status,
     case when p_status = 'voting' then now() + interval '20 hours' else p_played + interval '1 day' end,
     case when p_status = 'closed' then p_played + interval '1 day' end
   )
@@ -44,7 +61,10 @@ begin
   insert into public.stints (match_id, ordinal, weight) values (v_match, 1, 1) returning id into v_stint;
 
   foreach v_n in array p_team_a || p_team_b loop
-    insert into public.match_players (match_id, player_id) values (v_match, p_players[v_n]);
+    -- Checked in around 20:00; player 8 is always late.
+    insert into public.match_players (match_id, player_id, arrived_at)
+    values (v_match, p_players[v_n],
+            pg_temp.night_start(p_played) + make_interval(mins => case when v_n = 8 then 25 else v_n - 8 end));
     insert into public.stint_players (stint_id, match_id, player_id, team, is_goalkeeper)
     values (
       v_stint, v_match, p_players[v_n],
@@ -87,6 +107,12 @@ begin
   where rv.match_id = v_match and rv.score is not null
   order by rv.voter_id, rv.score desc, rv.target_id;
 
+  -- Everyone except the collector (player 3) and p_unpaid paid back the next day.
+  insert into public.night_payments (match_id, player_id, paid_at)
+  select v_match, p_players[x], pg_temp.night_start(p_played) + interval '1 day'
+  from unnest(p_team_a || p_team_b) x
+  where x <> 3 and x <> all (p_unpaid);
+
   if p_status = 'closed' then
     perform public.compute_match_ratings(v_match);
   end if;
@@ -100,6 +126,7 @@ declare
   v_players uuid[] := '{}';
   v_name    text;
   v_id      uuid;
+  v_night   uuid;
   v_year    int := extract(year from current_date)::int;
   v_all     int[] := array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 begin
@@ -120,29 +147,49 @@ begin
   end loop;
 
   -- Last season (shows up in the All-time tab only): B wins 2-1.
-  perform pg_temp.seed_match(v_group, v_players, make_date(v_year - 1, 12, 18),
+  perform pg_temp.seed_night(v_group, v_players, make_date(v_year - 1, 12, 18),
     array[1, 2, 3, 4, 5, 6], array[7, 8, 9, 10, 11, 12], 5, 9,
-    array[7, 9, 10, 0, 2, 0], 'closed', v_all);
+    array[7, 9, 10, 0, 2, 0], 'closed', v_all, '{}');
 
   -- Three weeks ago: A wins 4-1.
-  perform pg_temp.seed_match(v_group, v_players, current_date - 21,
+  perform pg_temp.seed_night(v_group, v_players, current_date - 21,
     array[1, 2, 3, 4, 5, 6], array[7, 8, 9, 10, 11, 12], 6, 12,
-    array[1, 2, 1, 0, 3, 1, 7, 8, 2, 4], 'closed', v_all);
+    array[1, 2, 1, 0, 3, 1, 7, 8, 2, 4], 'closed', v_all, '{}');
 
   -- Two weeks ago: B wins 3-2.
-  perform pg_temp.seed_match(v_group, v_players, current_date - 14,
+  perform pg_temp.seed_night(v_group, v_players, current_date - 14,
     array[1, 3, 5, 7, 9, 11], array[2, 4, 6, 8, 10, 12], 11, 12,
-    array[2, 4, 4, 0, 9, 1, 6, 2, 1, 3], 'closed', v_all);
+    array[2, 4, 4, 0, 9, 1, 6, 2, 1, 3], 'closed', v_all, '{}');
 
-  -- Last week: A wins 3-0 (clean sheet for player 10 in goal).
-  perform pg_temp.seed_match(v_group, v_players, current_date - 7,
+  -- Ten days ago: cancelled three hours before because of rain. Nothing to pay.
+  insert into public.matches (group_id, played_at, starts_at, location, cost, collector_player_id,
+                              status, cancel_reason, cancelled_at)
+  values (v_group, current_date - 10, pg_temp.night_start(current_date - 10), 'Club pitch 3', 600, v_players[3],
+          'cancelled', 'rain', pg_temp.night_start(current_date - 10) - interval '3 hours');
+
+  -- Last week: A wins 3-0 (clean sheet for player 10 in goal). 4 people still owe Ahmed.
+  perform pg_temp.seed_night(v_group, v_players, current_date - 7,
     array[1, 2, 4, 5, 8, 10], array[3, 6, 7, 9, 11, 12], 10, 11,
-    array[1, 2, 8, 0, 4, 1], 'closed', v_all);
+    array[1, 2, 8, 0, 4, 1], 'closed', v_all, array[7, 9, 11, 12]);
 
-  -- Yesterday: voting still open, 5 players have voted so far.
-  perform pg_temp.seed_match(v_group, v_players, current_date - 1,
+  -- Yesterday: voting still open, 5 players have voted, 3 have paid back.
+  perform pg_temp.seed_night(v_group, v_players, current_date - 1,
     array[1, 3, 5, 7, 9, 11], array[2, 4, 6, 8, 10, 12], 11, 12,
-    array[5, 1, 8, 2, 3, 0], 'voting', array[2, 3, 4, 5, 6]);
+    array[5, 1, 8, 2, 3, 0], 'voting', array[2, 3, 4, 5, 6], array[5, 6, 7, 8, 9, 10, 11, 12]);
+
+  -- In 3 days: planned, limit 10. Players 1-10 are in, 11 is waiting, 12 is out.
+  insert into public.matches (group_id, played_at, starts_at, location, cost, collector_player_id,
+                              player_cap, status)
+  values (v_group, current_date + 3, pg_temp.night_start(current_date + 3), 'Club pitch 3', 600, v_players[3],
+          10, 'draft')
+  returning id into v_night;
+
+  insert into public.rsvps (match_id, player_id, status, status_changed_at, waiting_since)
+  select v_night, v_players[x],
+         case when x <= 10 then 'in' when x = 11 then 'waiting' else 'out' end,
+         now() - make_interval(hours => 30 - x),
+         case when x = 11 then now() - make_interval(hours => 30 - x) end
+  from generate_series(1, 12) x;
 
   raise notice 'Demo FC created. Join it in the app with the code DEMO-KICK';
 end;

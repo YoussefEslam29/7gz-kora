@@ -7,10 +7,6 @@ export function isIos(): boolean {
   return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
 }
 
-export function isAndroid(): boolean {
-  return /Android/i.test(navigator.userAgent)
-}
-
 /** True when opened from the Home Screen icon (not in a browser tab). */
 export function isStandalone(): boolean {
   return (

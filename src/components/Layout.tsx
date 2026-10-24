@@ -3,13 +3,13 @@ import { useGroup } from '../state/group'
 import { HomeIcon, MatchesIcon, MoreIcon, PersonIcon, TableIcon } from './icons'
 import { Name } from './ui'
 
-/** Green striped header + content + bottom tabs (one-handed navigation). */
+/** Honeycomb header + content + bottom tabs (one-handed navigation). */
 export default function Layout() {
   const { group, myPlayerId } = useGroup()
 
   const tabs = [
     { to: '/', label: 'Home', icon: HomeIcon, end: true },
-    { to: '/matches', label: 'Matches', icon: MatchesIcon, end: false },
+    { to: '/nights', label: 'Nights', icon: MatchesIcon, end: false },
     { to: '/table', label: 'Table', icon: TableIcon, end: false },
     { to: `/players/${myPlayerId}`, label: 'Me', icon: PersonIcon, end: false },
     { to: '/settings', label: 'More', icon: MoreIcon, end: false },
@@ -17,13 +17,13 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="pitch-stripes sticky top-0 z-20 pt-[env(safe-area-inset-top)] text-white shadow-sm">
-        <div className="mx-auto flex h-14 max-w-xl items-center gap-3 px-4">
-          <img src="/logo.svg" alt="" className="size-9" />
-          <div className="min-w-0 leading-tight">
-            <p className="font-display text-xl font-bold tracking-wide">Ta7dy-El-La3eeba</p>
+      <header className="honeycomb sticky top-0 z-20 pt-[env(safe-area-inset-top)] text-on-brand">
+        <div className="mx-auto flex h-16 max-w-xl items-center gap-2.5 px-4">
+          <img src="/logo.svg" alt="" className="h-[46px] w-[30px] object-contain" />
+          <div className="min-w-0 leading-none">
+            <p className="font-display text-[22px] leading-none">7GZ-KORA</p>
             {group && (
-              <p className="truncate text-xs text-white/85">
+              <p className="mt-1 truncate text-[11.5px] font-semibold opacity-75">
                 <Name>{group.name}</Name>
               </p>
             )}
@@ -37,7 +37,7 @@ export default function Layout() {
 
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-20 border-t-[1.5px] border-line bg-paper pb-[env(safe-area-inset-bottom)]"
       >
         <ul className="mx-auto grid h-16 max-w-xl grid-cols-5">
           {tabs.map(({ to, label, icon: Icon, end }) => (
@@ -45,13 +45,11 @@ export default function Layout() {
               <NavLink
                 to={to}
                 end={end}
-                className={({ isActive }) =>
-                  `flex h-full flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-                    isActive ? 'text-pitch' : 'text-muted'
-                  }`
-                }
+                className="group flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-bold text-muted aria-[current=page]:text-ink"
               >
-                <Icon size={24} />
+                <span className="rounded-full px-3 py-[3px] group-aria-[current=page]:bg-brand group-aria-[current=page]:text-on-brand">
+                  <Icon size={22} />
+                </span>
                 {label}
               </NavLink>
             </li>

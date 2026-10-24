@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ta7dy-El-La3eeba: rating system (file 2 of 3)
+-- 7GZ-KORA: rating system (file 2 of 4)
 --
 -- This file is the ONE place where ratings are calculated.
 --

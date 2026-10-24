@@ -36,7 +36,7 @@ export default function PlayerProfile() {
       <div className="flex items-center gap-4">
         <Avatar name={p.display_name} url={p.avatar_url} size={64} />
         <div className="min-w-0">
-          <h1 className="font-display text-3xl leading-tight font-bold">
+          <h1 className="font-display text-3xl leading-tight">
             <Name>{p.display_name}</Name>
           </h1>
           <p className="text-sm text-muted">
@@ -58,14 +58,14 @@ export default function PlayerProfile() {
           <StatsCard title="All-time" row={data?.allTime} />
 
           <section>
-            <Heading className="mb-2">Matches</Heading>
+            <Heading className="mb-2">Nights</Heading>
             {data?.history.length === 0 ? (
-              <Empty title="No rated matches yet">Ratings appear after a match's voting closes.</Empty>
+              <Empty title="No rated nights yet">Ratings appear after a night's voting closes.</Empty>
             ) : (
-              <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+              <ul className="divide-y divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
                 {data?.history.map((h) => (
                   <li key={h.match_id}>
-                    <Link to={`/matches/${h.match_id}`} className="flex min-h-14 items-center gap-3 px-4 py-2">
+                    <Link to={`/nights/${h.match_id}`} className="flex min-h-14 items-center gap-3 px-4 py-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold">{formatDay(h.matches.played_at)}</p>
                         <p className="text-xs text-muted">
@@ -117,7 +117,7 @@ function StatsCard({ title, row }: { title: string; row: LeaderboardRow | undefi
         {stats.map(([label, value]) => (
           <div key={label}>
             <dt className="text-[11px] leading-tight text-muted">{label}</dt>
-            <dd className="tabular font-display text-2xl font-bold">{value}</dd>
+            <dd className="tabular font-display text-2xl">{value}</dd>
           </div>
         ))}
       </dl>
@@ -134,7 +134,7 @@ function RenameForm({ playerId, current }: { playerId: string; current: string }
 
   if (!editing) {
     return (
-      <button type="button" onClick={() => setEditing(true)} className="text-sm font-semibold text-pitch underline">
+      <button type="button" onClick={() => setEditing(true)} className="text-sm font-semibold text-brand-ink underline">
         Change name
       </button>
     )
@@ -163,7 +163,7 @@ function RenameForm({ playerId, current }: { playerId: string; current: string }
         required
         dir="auto"
         onChange={(e) => setName(e.target.value)}
-        className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-card px-3 text-base"
+        className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-paper px-3 text-base"
       />
       <Button type="submit" busy={busy} disabled={!name.trim()}>
         Save

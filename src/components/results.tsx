@@ -1,176 +1,93 @@
+// After the night: voting, then the final ratings with their breakdown.
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
-import { ChevronIcon, StarIcon } from '../components/icons'
-import { GoalList, Lineups, Scoreboard } from '../components/match'
-import {
-  Button,
-  Card,
-  ErrorNote,
-  Heading,
-  LinkButton,
-  Loading,
-  Name,
-  RatingBadge,
-  StatusChip,
-} from '../components/ui'
+import { Link } from 'react-router'
 import * as api from '../lib/api'
-import { errorMessage, formatDayLong, formatPoints, isPast, scoreOf, timeLeft } from '../lib/format'
-import type { MatchDetail, MatchRating } from '../lib/types'
-import { useLoad } from '../lib/useLoad'
+import { errorMessage, formatPoints, isPast, timeLeft } from '../lib/format'
+import type { Match, MatchDetail, MatchRating } from '../lib/types'
 import { useCurrentGroup } from '../state/group'
+import { ChevronIcon, StarIcon } from './icons'
+import { Button, Card, ErrorNote, Heading, LinkButton, Name, RatingBadge } from './ui'
 
-export default function MatchPage() {
-  const { id = '' } = useParams()
-  const { myPlayerId, isAdmin, refresh } = useCurrentGroup()
-  const [pollMs, setPollMs] = useState<number | undefined>(20_000)
-  const { data, error, loading, reload } = useLoad(async () => {
-    const detail = await api.getMatch(id)
-    const voteStatus = detail.match.status === 'voting' ? await api.getVoteStatus(id) : []
-    // Keep refreshing while the match is live; stop once it is final.
-    setPollMs(detail.match.status === 'closed' ? undefined : 20_000)
-    return { detail, voteStatus }
-  }, [id], pollMs)
+type VoteStatus = { player_id: string; has_voted: boolean }
+
+/** Voting is open: time left, who has voted, the vote button and the admin controls. */
+export function VotingCard({
+  match,
+  voteStatus,
+  iPlayed,
+  onChange,
+}: {
+  match: Match
+  voteStatus: VoteStatus[]
+  iPlayed: boolean
+  onChange: () => void
+}) {
+  const { myPlayerId, isAdmin } = useCurrentGroup()
   const [busy, setBusy] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
-
-  if (loading && !data) return <Loading />
-  if (!data) return <ErrorNote message={error} onRetry={reload} />
-
-  const { detail, voteStatus } = data
-  const { match, lineup, goals, playerIds } = detail
-  const iPlayed = playerIds.includes(myPlayerId)
+  const [error, setError] = useState<string | null>(null)
   const iVoted = voteStatus.some((v) => v.player_id === myPlayerId && v.has_voted)
 
   async function act(name: string, action: () => Promise<unknown>, confirmText?: string) {
     if (confirmText && !window.confirm(confirmText)) return
     setBusy(name)
-    setActionError(null)
+    setError(null)
     try {
       await action()
-      reload()
-      void refresh()
+      onChange()
     } catch (e) {
-      setActionError(errorMessage(e))
+      setError(errorMessage(e))
     } finally {
       setBusy(null)
     }
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="font-semibold">{formatDayLong(match.played_at)}</p>
-          <StatusChip status={match.status} />
-        </div>
-        {match.location && <p className="text-sm text-muted">{match.location}</p>}
-        <div className="mt-4 mb-2">
-          <Scoreboard score={scoreOf(goals)} />
-        </div>
-      </div>
-
-      <ErrorNote message={actionError ?? error} />
-
-      {(match.status === 'playing' || match.status === 'draft') && (
-        <Card>
-          <div className="space-y-2">
-            {(iPlayed || isAdmin) && (
-              <LinkButton to={`/matches/${id}/record`} className="w-full">
-                Log a goal
-              </LinkButton>
-            )}
-            {isAdmin && (
-              <div className="flex gap-2">
-                <LinkButton to={`/matches/${id}/edit`} variant="secondary" className="flex-1">
-                  Edit lineup
-                </LinkButton>
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  busy={busy === 'finish'}
-                  onClick={() =>
-                    act('finish', () => api.finishMatch(id), 'Finish the match and open voting? The score is final once voting closes.')
-                  }
-                >
-                  Finish match
-                </Button>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {match.status === 'voting' && (
-        <Card className={iPlayed && !iVoted ? 'border-pitch bg-team-a-soft' : ''}>
-          <Heading>Voting</Heading>
-          <p className="mt-1 font-display text-2xl font-bold">
-            {isPast(match.voting_closes_at) ? 'Closing now…' : `Closes in ${timeLeft(match.voting_closes_at)}`}
-          </p>
-          <VoteProgress voteStatus={voteStatus} />
-          {iPlayed && (
-            <LinkButton to={`/matches/${id}/vote`} variant={iVoted ? 'secondary' : 'primary'} className="mt-3 w-full">
-              {iVoted ? 'Change my votes' : 'Rate the players'}
-            </LinkButton>
-          )}
-          {isAdmin && (
-            <div className="mt-2 flex gap-2">
-              <Button
-                variant="secondary"
-                className="flex-1"
-                busy={busy === 'extend'}
-                onClick={() => act('extend', () => api.extendVoting(id, 12))}
-              >
-                +12 hours
-              </Button>
-              <Button
-                variant="secondary"
-                className="flex-1"
-                busy={busy === 'close'}
-                onClick={() =>
-                  act('close', () => api.closeVoting(id), 'Close voting now? Ratings become final and votes are revealed.')
-                }
-              >
-                Close voting now
-              </Button>
-            </div>
-          )}
-          {(iPlayed || isAdmin) && (
-            <Link to={`/matches/${id}/record`} className="mt-3 block text-center text-sm font-semibold text-pitch underline">
-              Forgot a goal? Log it
-            </Link>
-          )}
-        </Card>
-      )}
-
-      {match.status === 'closed' && <Results detail={detail} />}
-
-      <Card>
-        <Heading className="mb-2">Lineups</Heading>
-        <Lineups lineup={lineup} />
-      </Card>
-
-      <Card>
-        <Heading className="mb-1">Goals</Heading>
-        <GoalList detail={detail} onChange={reload} />
-      </Card>
-
-      {isAdmin && match.status === 'closed' && (
-        <LinkButton to={`/matches/${id}/edit`} variant="secondary" className="w-full">
-          Edit date or place
+    <Card strong={iPlayed && !iVoted}>
+      <Heading>Voting</Heading>
+      <p className="mt-1 font-display text-2xl">
+        {isPast(match.voting_closes_at) ? 'Closing now…' : `Closes in ${timeLeft(match.voting_closes_at)}`}
+      </p>
+      <VoteProgress voteStatus={voteStatus} />
+      <ErrorNote message={error} />
+      {iPlayed && (
+        <LinkButton to={`/nights/${match.id}/vote`} variant={iVoted ? 'secondary' : 'primary'} className="mt-3 w-full">
+          {iVoted ? 'Change my votes' : 'Rate the players'}
         </LinkButton>
       )}
-    </div>
+      {isAdmin && (
+        <div className="mt-2 flex gap-2">
+          <Button variant="secondary" className="flex-1" busy={busy === 'extend'} onClick={() => void act('extend', () => api.extendVoting(match.id, 12))}>
+            +12 hours
+          </Button>
+          <Button
+            variant="secondary"
+            className="flex-1"
+            busy={busy === 'close'}
+            onClick={() =>
+              void act('close', () => api.closeVoting(match.id), 'Close voting now? Ratings become final and votes are revealed.')
+            }
+          >
+            Close now
+          </Button>
+        </div>
+      )}
+      {(iPlayed || isAdmin) && (
+        <Link to={`/nights/${match.id}/record`} className="mt-3 block text-center text-sm font-semibold text-brand-ink underline">
+          Forgot a goal? Log it
+        </Link>
+      )}
+    </Card>
   )
 }
 
-function VoteProgress({ voteStatus }: { voteStatus: { player_id: string; has_voted: boolean }[] }) {
+function VoteProgress({ voteStatus }: { voteStatus: VoteStatus[] }) {
   const { playerName } = useCurrentGroup()
   const waiting = voteStatus.filter((v) => !v.has_voted)
   const done = voteStatus.length - waiting.length
   return (
     <div className="mt-2">
       <div className="h-2 overflow-hidden rounded-full bg-line" aria-hidden>
-        <div className="h-full rounded-full bg-pitch" style={{ width: `${(done / Math.max(1, voteStatus.length)) * 100}%` }} />
+        <div className="h-full rounded-full bg-brand" style={{ width: `${(done / Math.max(1, voteStatus.length)) * 100}%` }} />
       </div>
       <p className="mt-1 text-sm text-muted">
         {done} of {voteStatus.length} voted
@@ -191,7 +108,7 @@ function VoteProgress({ voteStatus }: { voteStatus: { player_id: string; has_vot
 }
 
 /** Final ratings, Man of the Match and who voted what. */
-function Results({ detail }: { detail: MatchDetail }) {
+export function Results({ detail }: { detail: MatchDetail }) {
   const { playerName, myPlayerId } = useCurrentGroup()
   const [open, setOpen] = useState<string | null>(myPlayerId)
   const ranked = [...detail.ratings].sort((a, b) => b.final_rating - a.final_rating)
@@ -199,7 +116,7 @@ function Results({ detail }: { detail: MatchDetail }) {
 
   return (
     <>
-      <Card className="border-gold/60">
+      <section className="rounded-card border-2 border-gold bg-paper p-4">
         <div className="flex items-center gap-3">
           <StarIcon size={36} className="shrink-0 text-gold" />
           <div className="min-w-0">
@@ -207,21 +124,21 @@ function Results({ detail }: { detail: MatchDetail }) {
             {mvps.length === 0 ? (
               <p className="text-muted">No votes</p>
             ) : (
-              <p className="font-display text-2xl font-bold">
+              <p className="font-display text-2xl">
                 {mvps.map((m, i) => (
                   <span key={m.player_id}>
                     {i > 0 && ' & '}
                     <Name>{playerName(m.player_id)}</Name>
                   </span>
                 ))}
-                <span className="ml-2 text-base font-semibold text-muted">
+                <span className="ml-2 font-sans text-base font-semibold text-muted">
                   {mvps[0].mvp_votes} vote{mvps[0].mvp_votes === 1 ? '' : 's'}
                 </span>
               </p>
             )}
           </div>
         </div>
-      </Card>
+      </section>
 
       <Card className="p-0">
         <div className="flex items-baseline justify-between px-4 pt-4">
@@ -235,9 +152,9 @@ function Results({ detail }: { detail: MatchDetail }) {
                 type="button"
                 aria-expanded={open === r.player_id}
                 onClick={() => setOpen(open === r.player_id ? null : r.player_id)}
-                className={`flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left ${r.player_id === myPlayerId ? 'bg-team-a-soft/60' : ''}`}
+                className={`flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left ${r.player_id === myPlayerId ? 'bg-brand/15' : ''}`}
               >
-                <span className="w-5 font-display text-lg font-bold text-muted">{i + 1}</span>
+                <span className="w-5 font-display text-lg text-muted">{i + 1}</span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5 font-semibold">
                     <Name className="truncate">{playerName(r.player_id)}</Name>
@@ -306,7 +223,7 @@ function Breakdown({ rating, detail }: { rating: MatchRating; detail: MatchDetai
         </tbody>
       </table>
 
-      <p className="rounded-lg bg-card p-2 font-medium">
+      <p className="rounded-lg bg-paper p-2 font-medium">
         {b.stats_only ? (
           <>
             Fewer than {b.min_votes} votes, so the rating is the stats score alone: <strong>{rating.rating.toFixed(1)}</strong>
@@ -328,7 +245,7 @@ function Breakdown({ rating, detail }: { rating: MatchRating; detail: MatchDetai
             {received
               .sort((x, y) => (y.score ?? 0) - (x.score ?? 0))
               .map((v) => (
-                <li key={v.voter_id} className="rounded-md bg-card px-2 py-1">
+                <li key={v.voter_id} className="rounded-md bg-paper px-2 py-1">
                   <Name>{playerName(v.voter_id)}</Name>{' '}
                   <strong className="tabular">{v.didnt_see ? "didn't see" : v.score}</strong>
                 </li>

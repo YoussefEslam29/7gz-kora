@@ -1,4 +1,4 @@
-import type { Team } from './types'
+import type { CancelReason, Match, Team } from './types'
 
 /** 8.3 -> "8.3". Ratings come from the database already rounded. */
 export function formatRating(value: number | null | undefined): string {
@@ -29,10 +29,50 @@ export function formatDayLong(day: string): string {
   return parseDay(day).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** A Date as "2026-10-29" in local time. */
+export function dayOf(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 /** Today as "2026-10-23" in local time. */
 export function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return dayOf(new Date())
+}
+
+/** A time as "20:05" in local time. */
+export function clockOf(value: string | Date): string {
+  const d = new Date(value)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** "Thu 29 Oct · 20:00" (just the day when there's no start time). */
+export function formatNightWhen(night: { played_at: string; starts_at: string | null }): string {
+  return night.starts_at ? `${formatDay(night.played_at)} · ${clockOf(night.starts_at)}` : formatDay(night.played_at)
+}
+
+/** 120 -> "2 hours", 90 -> "1 hour 30 min", 45 -> "45 min" */
+export function formatLength(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  const hours = h === 0 ? '' : `${h} hour${h === 1 ? '' : 's'}`
+  if (!m) return hours
+  return hours ? `${hours} ${m} min` : `${m} min`
+}
+
+/** "6 a side · 2 hours · 600 EGP" */
+export function nightFacts(night: Pick<Match, 'players_per_side' | 'duration_minutes' | 'cost' | 'currency'>): string {
+  const parts = [`${night.players_per_side} a side`, formatLength(night.duration_minutes)]
+  if (Number(night.cost) > 0) parts.push(`${Number(night.cost)} ${night.currency}`)
+  return parts.join(' · ')
+}
+
+export const CANCEL_REASONS: Record<CancelReason, string> = {
+  rain: 'Rain',
+  not_enough_players: 'Not enough players',
+  pitch_problem: 'Pitch problem',
+  other: 'Other',
 }
 
 /** "6h 12m", "35m", or "less than a minute" until the given time. */
@@ -57,13 +97,13 @@ export function scoreOf(goals: { scoring_team: Team; disputed: boolean }[]): Rec
   return score
 }
 
-/** Colour of a rating badge, like the football apps everyone knows. */
+/** Colour band of a rating badge (Design/README.md section 3; classes in index.css). */
 export function ratingTone(value: number | null | undefined): string {
   if (value == null) return 'bg-line text-muted'
-  if (value >= 8) return 'bg-pitch-deep text-white'
-  if (value >= 7) return 'bg-[#15803d] text-white'
-  if (value >= 6) return 'bg-[#b45309] text-white'
-  return 'bg-[#64748b] text-white'
+  if (value >= 8) return 'r-top'
+  if (value >= 7) return 'r-good'
+  if (value >= 6) return 'r-ok'
+  return 'r-low'
 }
 
 export function errorMessage(error: unknown): string {

@@ -8,7 +8,7 @@ import { googleName } from '../lib/user'
 import { useAuth } from '../state/auth'
 import { useGroup } from '../state/group'
 
-const input = 'mt-1 h-12 w-full rounded-xl border border-line bg-card px-3 text-base'
+const input = 'mt-1 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 text-base'
 
 /** Join a group with an invite code, or start a new one. */
 export default function JoinOrCreate({ standalone = false }: { standalone?: boolean }) {
@@ -70,7 +70,7 @@ export default function JoinOrCreate({ standalone = false }: { standalone?: bool
 
       <Card className="mb-4">
         <form onSubmit={join}>
-          <h2 className="font-display text-xl font-bold">Join with an invite code</h2>
+          <h2 className="font-display text-xl">Join with an invite code</h2>
           <label className="mt-2 block">
             <span className="text-sm text-muted">Ask your group admin for the code, e.g. KICK-7Q3F</span>
             <input
@@ -91,7 +91,7 @@ export default function JoinOrCreate({ standalone = false }: { standalone?: bool
 
       <Card>
         <form onSubmit={create}>
-          <h2 className="font-display text-xl font-bold">Start a new group</h2>
+          <h2 className="font-display text-xl">Start a new group</h2>
           <p className="text-sm text-muted">You'll be its admin and get a code to share.</p>
           <label className="mt-2 block">
             <span className="text-sm text-muted">Group name</span>

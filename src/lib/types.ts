@@ -1,8 +1,13 @@
 // Shapes of the rows the app reads from Supabase (see supabase/migrations).
 
 export type Team = 'A' | 'B'
+/** Bib colours. Team C (blue) plays once games arrive in stage 2. */
+export type Bib = Team | 'C'
 export type Role = 'admin' | 'member'
-export type MatchStatus = 'draft' | 'playing' | 'voting' | 'closed'
+/** draft = a planned night. A night is a row in matches; only the screens say "night". */
+export type MatchStatus = 'draft' | 'playing' | 'voting' | 'closed' | 'cancelled'
+export type RsvpStatus = 'in' | 'waiting' | 'out'
+export type CancelReason = 'rain' | 'not_enough_players' | 'pitch_problem' | 'other'
 
 export interface Group {
   id: string
@@ -68,11 +73,87 @@ export interface Match {
   id: string
   group_id: string
   played_at: string
+  starts_at: string | null
   location: string | null
+  duration_minutes: number
+  cost: number
+  currency: string
+  collector_player_id: string | null
+  players_per_side: number
+  game_minutes: number
+  /** null = no limit (no waiting list). */
+  player_cap: number | null
   status: MatchStatus
   voting_closes_at: string | null
   closed_at: string | null
+  cancel_reason: CancelReason | null
+  cancel_note: string | null
+  cancel_fee: number
+  cancelled_at: string | null
   created_at: string
+}
+
+/** One player's answer for a planned night. */
+export interface Rsvp {
+  player_id: string
+  status: RsvpStatus
+  status_changed_at: string
+  /** Order on the waiting list. */
+  waiting_since: string | null
+  /** Set when they moved up from the waiting list ("You're in!"). */
+  promoted_at: string | null
+}
+
+/** Checked in at the pitch. */
+export interface CheckIn {
+  player_id: string
+  arrived_at: string
+  left_at: string | null
+}
+
+/** What plan_night / update_night take (see supabase/migrations/*_nights.sql). */
+export interface NightDetails {
+  played_at: string
+  starts_at: string
+  location: string
+  duration_minutes: number
+  cost: number
+  players_per_side: number
+  collector_player_id: string | null
+  game_minutes: number
+  player_cap: number | null
+}
+
+/** The Plan a night form: a local date and time instead of a timestamp. */
+export interface NightForm {
+  day: string
+  time: string
+  location: string
+  duration_minutes: number
+  cost: number
+  players_per_side: number
+  collector_player_id: string | null
+  game_minutes: number
+  player_cap: number | null
+}
+
+/** A row of a night's money card (night_money). */
+export interface Payer {
+  player_id: string
+  /** Whole pounds: the cost ÷ the number of payers, rounded up. */
+  share: number
+  paid_at: string | null
+  /** The collector counts as paid automatically. */
+  is_collector: boolean
+}
+
+/** One unpaid share of the signed-in player (money_owed). */
+export interface MoneyOwed {
+  match_id: string
+  played_at: string
+  share: number
+  currency: string
+  collector_player_id: string | null
 }
 
 export interface Stint {
@@ -171,6 +252,7 @@ export interface MatchSummary extends Match {
   goals: { scoring_team: Team; disputed: boolean }[]
   match_ratings: { player_id: string; rating: number; is_mvp: boolean }[]
   match_players: { player_id: string }[]
+  rsvps: Rsvp[]
 }
 
 /** Everything the match page needs. */
@@ -179,8 +261,10 @@ export interface MatchDetail {
   stints: Stint[]
   /** Lineup of the current (latest) stint. */
   lineup: StintPlayer[]
-  /** Everyone who played (any stint). */
+  /** Everyone checked in. */
   playerIds: string[]
+  checkIns: CheckIn[]
+  rsvps: Rsvp[]
   goals: Goal[]
   ratings: MatchRating[]
   votes: Vote[]

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Ta7dy-El-La3eeba: app actions (file 3 of 3)
+-- 7GZ-KORA: app actions (file 3 of 4)
 --
 -- The app calls these functions (supabase.rpc('name', {...})) for everything
 -- that writes data. Each one checks who is calling and whether they are
@@ -71,7 +71,7 @@ declare
 begin
   select * into v_match from public.matches where id = p_match_id;
   if not found then
-    raise exception 'Match not found.';
+    raise exception 'Night not found.';
   end if;
   return v_match;
 end;
@@ -130,6 +130,22 @@ language sql immutable set search_path = ''
 as $$
   select case when length(c) = 8 then left(c, 4) || '-' || right(c, 4) else c end
   from (select regexp_replace(upper(coalesce(p_code, '')), '[^A-Z0-9]', '', 'g') as c) s;
+$$;
+
+-- Check-in and teams are allowed while the night is on, and while voting is
+-- open (to fix a mistake). Raises a friendly error otherwise.
+create function public.require_night_open(p_match public.matches)
+returns void
+language plpgsql stable set search_path = ''
+as $$
+begin
+  case p_match.status
+    when 'draft' then raise exception 'Start the night first.';
+    when 'cancelled' then raise exception 'This night was cancelled.';
+    when 'closed' then raise exception 'Voting is closed, so this night is final.';
+    else null;
+  end case;
+end;
 $$;
 
 
@@ -294,12 +310,13 @@ $$;
 
 
 -- -----------------------------------------------------------------------------
--- Matches and lineups
+-- Lineups (teams during a night)
 -- -----------------------------------------------------------------------------
 
--- Writes the lineup of the current (latest) stint and syncs who played.
+-- Writes the lineup of the current (latest) stint. Everyone in it must be
+-- checked in; checked-in players left out of it are on the bench.
 -- p_lineup: [{"player_id": "...", "team": "A", "is_goalkeeper": false}, ...]
-create function public.apply_lineup(p_match_id uuid, p_group_id uuid, p_lineup jsonb)
+create function public.apply_lineup(p_match_id uuid, p_lineup jsonb)
 returns void
 language plpgsql set search_path = ''
 as $$
@@ -326,14 +343,20 @@ begin
              where coalesce(e ->> 'team', '') not in ('A', 'B')) then
     raise exception 'Every player needs a team (A or B).';
   end if;
-  if exists (select 1 from unnest(v_ids) x
-             where not exists (select 1 from public.players p where p.id = x and p.group_id = p_group_id)) then
-    raise exception 'The lineup contains a player from another group.';
-  end if;
   if exists (select 1 from jsonb_array_elements(v_lineup) e
              where coalesce((e ->> 'is_goalkeeper')::boolean, false)
              group by e ->> 'team' having count(*) > 1) then
     raise exception 'Only one goalkeeper per team.';
+  end if;
+
+  -- Only checked-in players can be on a team.
+  select string_agg(coalesce(p.display_name, 'Unknown player'), ', ') into v_names
+  from unnest(v_ids) x
+  left join public.players p on p.id = x
+  where not exists (select 1 from public.match_players mp where mp.match_id = p_match_id and mp.player_id = x);
+
+  if v_names is not null then
+    raise exception 'Check in % first.', v_names;
   end if;
 
   select s.id into v_stint from public.stints s
@@ -344,7 +367,7 @@ begin
     returning id into v_stint;
   end if;
 
-  -- Players being dropped must not have goals or assists in this match.
+  -- Players moved to the bench must not have goals or assists tonight.
   select string_agg(p.display_name, ', ') into v_names
   from public.match_players mp
   join public.players p on p.id = mp.player_id
@@ -356,12 +379,8 @@ begin
                 where g.match_id = p_match_id and (g.scorer_id = mp.player_id or g.assister_id = mp.player_id));
 
   if v_names is not null then
-    raise exception '% scored or assisted in this match. Delete or change those goals first.', v_names;
+    raise exception '% scored or assisted tonight. Delete or change those goals first.', v_names;
   end if;
-
-  insert into public.match_players (match_id, player_id)
-  select p_match_id, x from unnest(v_ids) x
-  on conflict do nothing;
 
   delete from public.stint_players where stint_id = v_stint;
 
@@ -376,32 +395,6 @@ begin
   from public.stint_players sp
   where g.stint_id = v_stint and sp.stint_id = v_stint
     and sp.player_id = g.scorer_id and g.scoring_team <> sp.team;
-
-  -- Anyone no longer in any stint did not play (their votes are removed too).
-  delete from public.match_players mp
-  where mp.match_id = p_match_id
-    and not exists (select 1 from public.stint_players sp
-                    where sp.match_id = p_match_id and sp.player_id = mp.player_id);
-end;
-$$;
-
-create function public.create_match(p_group_id uuid, p_played_at date, p_location text, p_lineup jsonb)
-returns uuid
-language plpgsql security definer set search_path = ''
-as $$
-declare
-  v_match uuid;
-begin
-  perform public.require_admin(p_group_id);
-
-  insert into public.matches (group_id, played_at, location, status, created_by)
-  values (p_group_id, coalesce(p_played_at, current_date), nullif(trim(p_location), ''), 'playing', auth.uid())
-  returning id into v_match;
-
-  insert into public.stints (match_id, ordinal, weight) values (v_match, 1, 1);
-  perform public.apply_lineup(v_match, p_group_id, p_lineup);
-  perform public.write_audit(p_group_id, 'match_created', jsonb_build_object('match_id', v_match));
-  return v_match;
 end;
 $$;
 
@@ -413,30 +406,11 @@ declare
   v_match public.matches := public.load_match(p_match_id);
 begin
   perform public.require_admin(v_match.group_id);
-  if v_match.status = 'closed' then
-    raise exception 'Voting is closed, so the lineup is final.';
-  end if;
+  perform public.require_night_open(v_match);
 
-  perform public.apply_lineup(p_match_id, v_match.group_id, p_lineup);
+  perform public.apply_lineup(p_match_id, p_lineup);
   perform public.write_audit(v_match.group_id, 'lineup_changed',
     jsonb_build_object('match_id', p_match_id, 'lineup', p_lineup));
-end;
-$$;
-
-create function public.update_match_details(p_match_id uuid, p_played_at date, p_location text)
-returns void
-language plpgsql security definer set search_path = ''
-as $$
-declare
-  v_match public.matches := public.load_match(p_match_id);
-begin
-  perform public.require_admin(v_match.group_id);
-  update public.matches
-  set played_at = coalesce(p_played_at, played_at),
-      location = nullif(trim(p_location), '')
-  where id = p_match_id;
-  perform public.write_audit(v_match.group_id, 'match_details_changed',
-    jsonb_build_object('match_id', p_match_id, 'played_at', p_played_at, 'location', p_location));
 end;
 $$;
 
@@ -459,8 +433,9 @@ $$;
 -- Goals
 -- -----------------------------------------------------------------------------
 
--- Any player in the match (or an admin) can log a goal. It is attached to the
--- current stint and to the scorer's team in that stint.
+-- Any player in the night's lineup (or an admin) can log a goal. Stage 2 makes
+-- this admin-only. It is attached to the current stint and to the scorer's
+-- team in that stint.
 create function public.log_goal(p_match_id uuid, p_scorer_id uuid, p_assister_id uuid default null)
 returns uuid
 language plpgsql security definer set search_path = ''
@@ -474,6 +449,11 @@ declare
   v_assist_team text;
   v_goal        uuid;
 begin
+  if v_match.status = 'cancelled' then
+    raise exception 'This night was cancelled.';
+  elsif v_match.status = 'draft' then
+    raise exception 'Start the night before logging goals.';
+  end if;
   if not v_admin then
     if v_match.status not in ('playing', 'voting') then
       raise exception 'Goals can no longer be logged for this match. Ask an admin.';
@@ -657,35 +637,8 @@ $$;
 
 
 -- -----------------------------------------------------------------------------
--- Finishing a match and the voting window
+-- The voting window (a night is ended with end_night in file 4)
 -- -----------------------------------------------------------------------------
-
-create function public.finish_match(p_match_id uuid)
-returns void
-language plpgsql security definer set search_path = ''
-as $$
-declare
-  v_match public.matches := public.load_match(p_match_id);
-  v_hours int;
-begin
-  perform public.require_admin(v_match.group_id);
-
-  if v_match.status not in ('draft', 'playing') then
-    raise exception 'This match is already finished.';
-  end if;
-  if (select count(*) from public.match_players mp where mp.match_id = p_match_id) < 2 then
-    raise exception 'Add at least 2 players before finishing the match.';
-  end if;
-
-  select rc.voting_hours into v_hours from public.rating_config rc where rc.group_id = v_match.group_id;
-
-  update public.matches
-  set status = 'voting', voting_closes_at = now() + make_interval(hours => coalesce(v_hours, 24))
-  where id = p_match_id;
-
-  perform public.write_audit(v_match.group_id, 'match_finished', jsonb_build_object('match_id', p_match_id));
-end;
-$$;
 
 create function public.extend_voting(p_match_id uuid, p_hours int)
 returns void
@@ -801,7 +754,7 @@ declare
   v_votes jsonb := coalesce(p_votes, '[]'::jsonb);
 begin
   if v_match.status <> 'voting' or v_match.voting_closes_at <= now() then
-    raise exception 'Voting is closed for this match.';
+    raise exception 'Voting is closed for this night.';
   end if;
   if not exists (select 1 from public.match_players mp where mp.match_id = p_match_id and mp.player_id = v_me) then
     raise exception 'Only players who played in this match can vote.';
@@ -944,16 +897,13 @@ grant execute on function
   public.disable_invite_code(uuid),
   public.set_member_role(uuid, uuid, text),
   public.remove_member(uuid, uuid),
-  public.create_match(uuid, date, text, jsonb),
   public.save_lineup(uuid, jsonb),
-  public.update_match_details(uuid, date, text),
   public.delete_match(uuid),
   public.log_goal(uuid, uuid, uuid),
   public.edit_goal(uuid, uuid, uuid),
   public.delete_goal(uuid),
   public.confirm_goal(uuid),
   public.dispute_goal(uuid),
-  public.finish_match(uuid),
   public.extend_voting(uuid, int),
   public.close_voting(uuid),
   public.close_due_matches(uuid),

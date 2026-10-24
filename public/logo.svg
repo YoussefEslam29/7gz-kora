@@ -1,29 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ta7dy-El-La3eeba">
-  <defs>
-    <clipPath id="disk"><circle cx="256" cy="256" r="226"/></clipPath>
-    <clipPath id="ball"><circle cx="256" cy="256" r="151"/></clipPath>
-    <g id="patch">
-      <line x1="256" y1="206" x2="256" y2="160" stroke="#0B5D2E" stroke-width="9" stroke-linecap="round"/>
-      <polygon points="256,158 206.5,122.1 225.4,63.9 286.6,63.9 305.5,122.1" fill="#0B5D2E"/>
-    </g>
-  </defs>
-  <!-- Badge: dark green ring around a freshly mown pitch -->
-  <circle cx="256" cy="256" r="250" fill="#0B5D2E"/>
-  <g clip-path="url(#disk)">
-    <rect x="0" y="0" width="512" height="512" fill="#16A34A"/>
-    <rect x="70" y="0" width="62" height="512" fill="#15913F"/>
-    <rect x="194" y="0" width="62" height="512" fill="#15913F"/>
-    <rect x="318" y="0" width="62" height="512" fill="#15913F"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 484 760" width="484" height="760" role="img" aria-label="7GZ-KORA">
+<defs><mask id="m" maskUnits="userSpaceOnUse" x="22" y="22" width="484" height="760">
+    <rect x="22" y="22" width="484" height="760" fill="#000"/>
+    <defs>
+  
+    <clipPath id="m-ball"><circle cx="314" cy="596" r="160"/></clipPath>
+    <polygon id="m-hex" points="54,0 27,46.8 -27,46.8 -54,0 -27,-46.8 27,-46.8"/>
+  
+  </defs><!-- ball: white, green honeycomb around a white centre hexagon -->
+  <circle cx="314" cy="596" r="170" fill="#fff"/>
+  <g clip-path="url(#m-ball)" fill="#000">
+    <use href="#m-hex" x="314" y="474"/>
+    <use href="#m-hex" x="314" y="718"/>
+    <use href="#m-hex" x="208" y="535"/>
+    <use href="#m-hex" x="208" y="657"/>
+    <use href="#m-hex" x="420" y="535"/>
+    <use href="#m-hex" x="420" y="657"/>
+    <use href="#m-hex" x="102" y="596"/>
+    <use href="#m-hex" x="526" y="596"/>
+    <use href="#m-hex" x="208" y="413"/>
+    <use href="#m-hex" x="420" y="413"/>
   </g>
-  <!-- The ball -->
-  <circle cx="256" cy="256" r="152" fill="#FFFFFF"/>
-  <g clip-path="url(#ball)">
-    <use href="#patch"/>
-    <use href="#patch" transform="rotate(72 256 256)"/>
-    <use href="#patch" transform="rotate(144 256 256)"/>
-    <use href="#patch" transform="rotate(216 256 256)"/>
-    <use href="#patch" transform="rotate(288 256 256)"/>
+  <!-- studs (behind the sole edge, in front of the ball) -->
+  <g fill="#000" stroke="#fff" stroke-width="9" stroke-linejoin="round">
+    <rect x="60" y="458" width="28" height="30" rx="10"/>
+    <rect x="104" y="464" width="28" height="30" rx="10"/>
+    <rect x="212" y="462" width="28" height="28" rx="10"/>
+    <rect x="338" y="448" width="28" height="30" rx="10"/>
+    <rect x="382" y="440" width="28" height="30" rx="10"/>
   </g>
-  <polygon points="256,206 303.6,240.6 285.4,296.4 226.6,296.4 208.4,240.6" fill="#0B5D2E"/>
-  <circle cx="256" cy="256" r="152" fill="none" stroke="#0B5D2E" stroke-width="10"/>
+  <!-- boot upper -->
+  <path d="M76 352 C62 372 54 400 54 430 L444 402 C458 384 448 356 412 348 C380 342 330 336 290 322 C270 314 256 306 248 300 L240 344 Z"
+        fill="#000" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
+  <!-- sole: heavy white band -->
+  <path d="M50 426 C180 420 330 410 446 398 C456 406 454 422 444 428 C330 446 190 472 60 470 C44 464 42 434 50 426 Z" fill="#fff"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <!-- sock with stripes -->
+    <path d="M84 340 L114 146 L190 42 L262 86 L226 304" stroke-width="10"/>
+    <path d="M124 304 L150 142 M160 292 L184 110 M196 286 L222 98" stroke-width="9"/>
+    <!-- collar band -->
+    <path d="M70 352 C120 346 180 342 238 344" stroke-width="18"/>
+    <!-- tongue loop -->
+    <path d="M196 338 C190 312 208 294 230 298 C250 302 258 322 250 342" stroke-width="10"/>
+  </g>
+  <!-- laces across the top of the boot -->
+  <g fill="#000" stroke="#fff" stroke-width="9" stroke-linejoin="round">
+    <rect x="-12" y="-26" width="24" height="52" rx="5" transform="translate(270 326) rotate(-28)"/>
+    <rect x="-12" y="-26" width="24" height="52" rx="5" transform="translate(308 340) rotate(-28)"/>
+    <rect x="-12" y="-26" width="24" height="52" rx="5" transform="translate(346 352) rotate(-28)"/>
+  </g>
+
+  </mask></defs>
+<g transform="translate(0 0) scale(1.00000) translate(-22 -22)">
+    <rect x="22" y="22" width="484" height="760" fill="#FFFFFF" mask="url(#m)"/>
+  </g>
 </svg>

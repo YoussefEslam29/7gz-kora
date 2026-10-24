@@ -1,0 +1,10 @@
+# 7GZ-KORA is private: hidden from search engines. Link-preview bots may read
+# the page, so shared links show the name and logo (Plans/Install-first-access.md).
+User-agent: facebookexternalhit
+User-agent: WhatsApp
+User-agent: TelegramBot
+User-agent: Twitterbot
+Allow: /
+
+User-agent: *
+Disallow: /

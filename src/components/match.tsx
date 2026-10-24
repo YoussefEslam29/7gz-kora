@@ -5,18 +5,20 @@ import { errorMessage } from '../lib/format'
 import type { Goal, MatchDetail, StintPlayer, Team } from '../lib/types'
 import { useAuth } from '../state/auth'
 import { useGroup } from '../state/group'
-import { BallIcon, CheckIcon, FlagIcon, GloveIcon } from './icons'
-import { Button, ErrorNote, Name } from './ui'
+import { CheckIcon, FlagIcon, GloveIcon } from './icons'
+import { Button, ErrorNote, Name, TeamTag } from './ui'
 
-/** Big "A 2 – 1 B" scoreboard. */
+/** Team chips on top, the score below (Design/README.md, Scoreboard). */
 export function Scoreboard({ score }: { score: Record<Team, number> }) {
   return (
-    <div className="tabular flex items-center justify-center gap-4 font-display font-bold" aria-label={`Team A ${score.A}, Team B ${score.B}`}>
-      <span className="text-lg tracking-wide text-team-a">TEAM A</span>
-      <span className="text-6xl leading-none">{score.A}</span>
-      <span className="text-4xl leading-none text-muted">–</span>
-      <span className="text-6xl leading-none">{score.B}</span>
-      <span className="text-lg tracking-wide text-team-b">TEAM B</span>
+    <div aria-label={`Team A ${score.A}, Team B ${score.B}`}>
+      <div className="flex items-center justify-between">
+        <TeamTag team="A" />
+        <TeamTag team="B" />
+      </div>
+      <p className="tabular mt-0.5 text-center font-display text-[64px] leading-none whitespace-nowrap">
+        {score.A} – {score.B}
+      </p>
     </div>
   )
 }
@@ -28,9 +30,9 @@ export function Lineups({ lineup }: { lineup: StintPlayer[] }) {
     <div className="grid grid-cols-2 gap-3">
       {(['A', 'B'] as const).map((team) => (
         <div key={team}>
-          <p className={`mb-1 font-display text-sm font-bold tracking-wider ${team === 'A' ? 'text-team-a' : 'text-team-b'}`}>
-            TEAM {team}
-          </p>
+          <div className="mb-1.5">
+            <TeamTag team={team} />
+          </div>
           <ul className="space-y-1">
             {lineup
               .filter((p) => p.team === team)
@@ -48,7 +50,7 @@ export function Lineups({ lineup }: { lineup: StintPlayer[] }) {
   )
 }
 
-/** Grid of big player buttons, grouped by team. Used to pick a scorer or assister. */
+/** Grid of big player buttons in their bib colours. Used to pick a scorer or assister. */
 export function PlayerGrid({
   lineup,
   onPick,
@@ -66,9 +68,9 @@ export function PlayerGrid({
     <div className="space-y-4">
       {teams.map((team) => (
         <div key={team}>
-          <p className={`mb-2 font-display text-sm font-bold tracking-wider ${team === 'A' ? 'text-team-a' : 'text-team-b'}`}>
-            TEAM {team}
-          </p>
+          <div className="mb-2">
+            <TeamTag team={team} />
+          </div>
           <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3">
             {lineup
               .filter((p) => p.team === team && p.player_id !== exclude)
@@ -77,8 +79,8 @@ export function PlayerGrid({
                   key={p.player_id}
                   type="button"
                   onClick={() => onPick(p.player_id)}
-                  className={`press min-h-14 rounded-xl border-2 px-2 py-2 text-left font-semibold ${
-                    team === 'A' ? 'border-team-a/40 bg-team-a-soft' : 'border-team-b/40 bg-team-b-soft'
+                  className={`press min-h-14 rounded-xl border-2 border-[#0b0b0b] px-2 py-2 text-left font-semibold text-[#0b0b0b] ${
+                    team === 'A' ? 'bg-team-a' : 'bg-team-b'
                   }`}
                 >
                   <Name className="line-clamp-2">{playerName(p.player_id)}</Name>
@@ -174,7 +176,9 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
           return (
             <li key={g.id} className={`py-3 ${g.disputed ? 'opacity-70' : ''}`}>
               <div className="flex items-start gap-2">
-                <BallIcon size={20} className={`mt-0.5 shrink-0 ${g.scoring_team === 'A' ? 'text-team-a' : 'text-team-b'}`} />
+                <span className={`chip team-${g.scoring_team.toLowerCase()} mt-0.5 shrink-0 px-2`} aria-label={`Team ${g.scoring_team}`}>
+                  {g.scoring_team}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className={`font-semibold ${g.disputed ? 'line-through' : ''}`}>
                     <Name>{playerName(g.scorer_id)}</Name>
@@ -191,7 +195,7 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
                     {g.disputed ? (
                       <span className="font-semibold text-danger">Disputed: doesn't count until an admin fixes it</span>
                     ) : g.confirmed ? (
-                      <span className="text-team-a">Confirmed</span>
+                      <span className="text-brand-ink">Confirmed</span>
                     ) : (
                       'Not confirmed yet'
                     )}
@@ -199,7 +203,7 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
                 </div>
               </div>
               {(canConfirm || canDispute || canDelete || isAdmin) && (
-                <div className="mt-2 flex flex-wrap gap-2 pl-7">
+                <div className="mt-2 flex flex-wrap gap-2 pl-10">
                   {canConfirm && (
                     <Button size="sm" busy={busy === g.id} onClick={() => run(g.id, () => api.confirmGoal(g.id))}>
                       <CheckIcon size={16} /> Confirm

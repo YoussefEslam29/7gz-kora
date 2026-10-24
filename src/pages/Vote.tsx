@@ -17,15 +17,15 @@ export default function Vote() {
   if (!data) return <ErrorNote message={error} onRetry={reload} />
 
   const back = (
-    <Link to={`/matches/${id}`} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-muted">
-      <BackIcon size={18} /> Match
+    <Link to={`/nights/${id}`} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-muted">
+      <BackIcon size={18} /> Night
     </Link>
   )
   if (data.match.status !== 'voting' || isPast(data.match.voting_closes_at)) {
     return (
       <>
         {back}
-        <Notice>Voting is not open for this match.</Notice>
+        <Notice>Voting is not open for this night.</Notice>
       </>
     )
   }
@@ -33,7 +33,7 @@ export default function Vote() {
     return (
       <>
         {back}
-        <Notice>Only players who played in this match can vote.</Notice>
+        <Notice>Only players checked in for this night can vote.</Notice>
       </>
     )
   }
@@ -84,7 +84,7 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
         c === 'didnt_see' ? { target_id, didnt_see: true } : { target_id, score: c },
       )
       await api.submitVotes(match.id, list, mvp)
-      navigate(`/matches/${match.id}`)
+      navigate(`/nights/${match.id}`)
     } catch (e) {
       setError(errorMessage(e))
       setBusy(false)
@@ -102,7 +102,7 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
           const choice = choices.get(pid)
           const team = teamOf(pid)
           return (
-            <li key={pid} className="rounded-2xl border border-line bg-card p-3">
+            <li key={pid} className="rounded-card border-[1.5px] border-line bg-paper p-3">
               <div className="mb-2 flex items-center gap-2">
                 <Name className="min-w-0 flex-1 truncate text-lg font-semibold">{playerName(pid)}</Name>
                 {team && <TeamTag team={team} />}
@@ -111,21 +111,21 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
                   aria-pressed={choice === 'didnt_see'}
                   onClick={() => choose(pid, 'didnt_see')}
                   className={`h-9 shrink-0 rounded-lg px-2.5 text-sm font-medium ${
-                    choice === 'didnt_see' ? 'bg-ink text-card' : 'border border-line text-muted'
+                    choice === 'didnt_see' ? 'bg-ink text-paper' : 'border-[1.5px] border-line text-muted'
                   }`}
                 >
                   Didn't see
                 </button>
               </div>
-              <div className="grid grid-cols-5 gap-1.5 min-[400px]:grid-cols-10" role="group" aria-label={`Score for ${playerName(pid)}`}>
+              <div className="grid grid-cols-5 gap-1.5" role="group" aria-label={`Score for ${playerName(pid)}`}>
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                   <button
                     key={n}
                     type="button"
                     aria-pressed={choice === n}
                     onClick={() => choose(pid, n)}
-                    className={`press tabular h-11 rounded-lg font-display text-xl font-bold ${
-                      choice === n ? 'bg-primary text-white' : 'bg-ground text-ink'
+                    className={`press tabular h-[42px] rounded-[10px] border-[1.5px] font-display text-xl ${
+                      choice === n ? 'border-[#0b0b0b] bg-brand text-on-brand' : 'border-transparent bg-ground text-ink'
                     }`}
                   >
                     {n}
@@ -137,8 +137,8 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
         })}
       </ul>
 
-      <section className="mt-6 rounded-2xl border border-gold/60 bg-card p-3">
-        <h2 className="mb-2 flex items-center gap-2 font-display text-xl font-bold">
+      <section className="mt-6 rounded-card border border-gold/60 bg-paper p-3">
+        <h2 className="mb-2 flex items-center gap-2 font-display text-xl">
           <StarIcon size={22} className="text-gold" /> Man of the Match
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -160,7 +160,7 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
 
       <ErrorNote message={error} />
 
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-10 mt-4 rounded-2xl border border-line bg-card/95 p-3 backdrop-blur">
+      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-10 mt-4 rounded-card border-[1.5px] border-line bg-paper/95 p-3 backdrop-blur">
         <p className="mb-2 text-center text-sm text-muted">
           {done} of {targets.length} rated · {mvp ? 'Man of the Match picked' : 'pick a Man of the Match'}
         </p>

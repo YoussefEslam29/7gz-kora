@@ -4,6 +4,8 @@
 // which check permissions and return human-readable errors.
 import { supabase } from './supabase'
 import type {
+  CancelReason,
+  CheckIn,
   Goal,
   Group,
   LeaderboardRow,
@@ -14,10 +16,15 @@ import type {
   MatchSummary,
   Member,
   Membership,
+  MoneyOwed,
   MvpVote,
+  NightDetails,
+  Payer,
   Player,
   RatingConfig,
   Role,
+  Rsvp,
+  RsvpStatus,
   Stint,
   StintPlayer,
   Vote,
@@ -98,13 +105,15 @@ export async function getRatingConfig(groupId: string): Promise<RatingConfig | n
 export const closeDueMatches = (groupId: string) => rpc<number>('close_due_matches', { p_group_id: groupId })
 
 // ---------------------------------------------------------------------------
-// Matches
+// Nights (rows of the matches table)
 // ---------------------------------------------------------------------------
 export async function listMatches(groupId: string): Promise<MatchSummary[]> {
   return unwrap(
     await supabase
       .from('matches')
-      .select('*, goals(scoring_team, disputed), match_ratings(player_id, rating, is_mvp), match_players!match_players_match_id_fkey(player_id)')
+      .select(
+        '*, goals(scoring_team, disputed), match_ratings(player_id, rating, is_mvp), match_players!match_players_match_id_fkey(player_id), rsvps(player_id, status, status_changed_at, waiting_since, promoted_at)',
+      )
       .eq('group_id', groupId)
       .order('played_at', { ascending: false })
       .order('created_at', { ascending: false }),
@@ -112,11 +121,12 @@ export async function listMatches(groupId: string): Promise<MatchSummary[]> {
 }
 
 export async function getMatch(matchId: string): Promise<MatchDetail> {
-  const [match, stints, stintPlayers, players, goals, ratings, votes, mvpVotes] = await Promise.all([
+  const [match, stints, stintPlayers, players, rsvps, goals, ratings, votes, mvpVotes] = await Promise.all([
     supabase.from('matches').select('*').eq('id', matchId).single(),
     supabase.from('stints').select('id, ordinal, weight').eq('match_id', matchId).order('ordinal'),
     supabase.from('stint_players').select('stint_id, player_id, team, is_goalkeeper').eq('match_id', matchId),
-    supabase.from('match_players').select('player_id').eq('match_id', matchId),
+    supabase.from('match_players').select('player_id, arrived_at, left_at').eq('match_id', matchId).order('arrived_at'),
+    supabase.from('rsvps').select('player_id, status, status_changed_at, waiting_since, promoted_at').eq('match_id', matchId),
     supabase.from('goals').select('*').eq('match_id', matchId).order('created_at'),
     supabase.from('match_ratings').select('*').eq('match_id', matchId),
     supabase.from('ratings_votes').select('voter_id, target_id, score, didnt_see').eq('match_id', matchId),
@@ -124,11 +134,14 @@ export async function getMatch(matchId: string): Promise<MatchDetail> {
   ])
   const stintList = unwrap<Stint[]>(stints)
   const current = stintList[stintList.length - 1]
+  const checkIns = unwrap<CheckIn[]>(players)
   return {
     match: unwrap<Match>(match),
     stints: stintList,
     lineup: unwrap<StintPlayer[]>(stintPlayers).filter((sp) => sp.stint_id === current?.id),
-    playerIds: unwrap<{ player_id: string }[]>(players).map((p) => p.player_id),
+    playerIds: checkIns.map((c) => c.player_id),
+    checkIns,
+    rsvps: unwrap<Rsvp[]>(rsvps),
     goals: unwrap<Goal[]>(goals),
     ratings: unwrap<MatchRating[]>(ratings),
     votes: unwrap<Vote[]>(votes),
@@ -136,20 +149,58 @@ export async function getMatch(matchId: string): Promise<MatchDetail> {
   }
 }
 
-export const createMatch = (groupId: string, playedAt: string, location: string, lineup: LineupEntry[]) =>
-  rpc<string>('create_match', { p_group_id: groupId, p_played_at: playedAt, p_location: location, p_lineup: lineup })
+/** The most recent night (any status), to pre-fill "Plan a night". */
+export async function getLastNight(groupId: string): Promise<Match | null> {
+  return unwrap(
+    await supabase
+      .from('matches')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('played_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  )
+}
+
+export const planNight = (groupId: string, night: NightDetails) =>
+  rpc<string>('plan_night', { p_group_id: groupId, p_night: night })
+
+export const updateNight = (matchId: string, night: NightDetails) =>
+  rpc('update_night', { p_match_id: matchId, p_night: night })
+
+/** "I'm in" or "Out". Returns your new status: in, waiting (the night is full) or out. */
+export const setRsvp = (matchId: string, status: 'in' | 'out') =>
+  rpc<RsvpStatus>('set_rsvp', { p_match_id: matchId, p_status: status })
+
+export const startNight = (matchId: string) => rpc('start_night', { p_match_id: matchId })
+export const checkIn = (matchId: string, playerId: string) =>
+  rpc('check_in', { p_match_id: matchId, p_player_id: playerId })
+export const checkOut = (matchId: string, playerId: string) =>
+  rpc('check_out', { p_match_id: matchId, p_player_id: playerId })
+export const undoCheckIn = (matchId: string, playerId: string) =>
+  rpc('undo_check_in', { p_match_id: matchId, p_player_id: playerId })
+export const endNight = (matchId: string) => rpc('end_night', { p_match_id: matchId })
+export const cancelNight = (matchId: string, reason: CancelReason, note: string, fee: number) =>
+  rpc('cancel_night', { p_match_id: matchId, p_reason: reason, p_note: note, p_fee: fee })
 
 export const saveLineup = (matchId: string, lineup: LineupEntry[]) =>
   rpc('save_lineup', { p_match_id: matchId, p_lineup: lineup })
 
-export const updateMatchDetails = (matchId: string, playedAt: string, location: string) =>
-  rpc('update_match_details', { p_match_id: matchId, p_played_at: playedAt, p_location: location })
-
 export const deleteMatch = (matchId: string) => rpc('delete_match', { p_match_id: matchId })
-export const finishMatch = (matchId: string) => rpc('finish_match', { p_match_id: matchId })
 export const extendVoting = (matchId: string, hours: number) =>
   rpc('extend_voting', { p_match_id: matchId, p_hours: hours })
 export const closeVoting = (matchId: string) => rpc('close_voting', { p_match_id: matchId })
+
+// ---------------------------------------------------------------------------
+// Money (the rule lives in the database: night_payer_rows)
+// ---------------------------------------------------------------------------
+export const getNightMoney = (matchId: string) => rpc<Payer[]>('night_money', { p_match_id: matchId })
+export const getMoneyOwed = (groupId: string) => rpc<MoneyOwed[]>('money_owed', { p_group_id: groupId })
+export const markPaid = (matchId: string, playerId: string) =>
+  rpc('mark_paid', { p_match_id: matchId, p_player_id: playerId })
+export const unmarkPaid = (matchId: string, playerId: string) =>
+  rpc('unmark_paid', { p_match_id: matchId, p_player_id: playerId })
 
 // ---------------------------------------------------------------------------
 // Goals

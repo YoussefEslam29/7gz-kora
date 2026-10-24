@@ -1,7 +1,9 @@
-// Generates the app icons from public/logo.svg. Run `npm run icons` after
-// changing the logo. Output (in public/): favicon.ico, pwa-64x64.png,
-// pwa-192x192.png, pwa-512x512.png, maskable-icon-512x512.png and
-// apple-touch-icon-180x180.png.
+// Generates the app icons from public/app-icon.svg (the boot-on-ball on
+// green, no text). Run `npm run icons` after changing it. Output (in public/):
+// favicon.ico, pwa-64x64.png, pwa-192x192.png, pwa-512x512.png,
+// maskable-icon-512x512.png and apple-touch-icon-180x180.png.
+// app-icon.svg is already a full green square with the mark inside the safe
+// zone, so no extra padding or background is added.
 import { defineConfig, minimal2023Preset } from '@vite-pwa/assets-generator/config'
 
 export default defineConfig({
@@ -10,10 +12,9 @@ export default defineConfig({
   },
   preset: {
     ...minimal2023Preset,
-    // Home screen icons: the round badge on white, large enough to read.
-    // (Maskable icons must keep the logo inside the centre 80% circle.)
-    maskable: { ...minimal2023Preset.maskable, padding: 0.2, resizeOptions: { background: '#FFFFFF' } },
-    apple: { ...minimal2023Preset.apple, padding: 0.12, resizeOptions: { background: '#FFFFFF' } },
+    transparent: { ...minimal2023Preset.transparent, padding: 0 },
+    maskable: { ...minimal2023Preset.maskable, padding: 0 },
+    apple: { ...minimal2023Preset.apple, padding: 0 },
   },
-  images: ['public/logo.svg'],
+  images: ['public/app-icon.svg'],
 })

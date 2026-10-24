@@ -63,13 +63,13 @@ export default function Settings() {
             </dd>
             <dt className="text-muted">Votes needed to count</dt>
             <dd className="text-right font-semibold">{config.min_votes}</dd>
-            <dt className="text-muted">Matches to join the table</dt>
+            <dt className="text-muted">Nights to join the table</dt>
             <dd className="text-right font-semibold">{config.min_matches_for_leaderboard}</dd>
             <dt className="text-muted">Voting window</dt>
             <dd className="text-right font-semibold">{config.voting_hours} hours</dd>
           </dl>
         )}
-        <Link to="/how-it-works" className="mt-3 flex items-center justify-between font-semibold text-pitch">
+        <Link to="/how-it-works" className="mt-3 flex items-center justify-between font-semibold text-brand-ink">
           How ratings are calculated <ChevronIcon size={18} />
         </Link>
       </Card>
@@ -93,12 +93,6 @@ export default function Settings() {
         <LinkButton to="/join" variant="secondary" className="mt-3 w-full">
           Join or create another group
         </LinkButton>
-      </Card>
-
-      <Card>
-        <Link to="/install" className="flex min-h-11 items-center justify-between font-semibold">
-          Install the app on your phone <ChevronIcon size={18} />
-        </Link>
       </Card>
 
       <div className="space-y-2 pt-2">
@@ -137,10 +131,10 @@ function InviteCard() {
   const link = code ? `${window.location.origin}/join?code=${code}` : ''
 
   async function share() {
-    const text = `Join ${group.name} on Ta7dy-El-La3eeba. Invite code: ${code}`
+    const text = `Join ${group.name} on 7GZ-KORA. Invite code: ${code}`
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Ta7dy-El-La3eeba', text, url: link })
+        await navigator.share({ title: '7GZ-KORA', text, url: link })
       } else {
         await navigator.clipboard.writeText(`${text}\n${link}`)
         setCopied(true)
@@ -169,7 +163,7 @@ function InviteCard() {
       <Heading>Invite code</Heading>
       {code ? (
         <>
-          <p className="tabular my-2 text-center font-display text-5xl font-bold tracking-widest select-all">{code}</p>
+          <p className="tabular my-2 text-center font-display text-5xl tracking-widest select-all">{code}</p>
           <div className="flex gap-2">
             <Button className="flex-1" onClick={share}>
               Share invite
@@ -256,7 +250,7 @@ function RenameGroup() {
             maxLength={60}
             dir="auto"
             onChange={(e) => setName(e.target.value)}
-            className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-card px-3 text-base"
+            className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-paper px-3 text-base"
           />
           <Button type="submit" variant="secondary" busy={busy} disabled={name.trim() === group.name || !name.trim()}>
             Save

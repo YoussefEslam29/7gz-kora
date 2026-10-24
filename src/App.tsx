@@ -2,25 +2,30 @@ import { useEffect } from 'react'
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router'
 import Layout from './components/Layout'
 import { Button, ErrorNote } from './components/ui'
+import { allowBrowser, appMode } from './lib/access'
+import { isStandalone } from './lib/pwa'
 import { KEYS, writeLocal } from './lib/storage'
 import { isConfigured } from './lib/supabase'
 import Home from './pages/Home'
 import HowItWorks from './pages/HowItWorks'
-import Install from './pages/Install'
+import InstallScreen from './pages/InstallScreen'
 import JoinOrCreate from './pages/JoinOrCreate'
 import Leaderboard from './pages/Leaderboard'
-import MatchEdit from './pages/MatchEdit'
-import MatchPage from './pages/MatchPage'
-import Matches from './pages/Matches'
+import NightPage from './pages/NightPage'
+import Nights from './pages/Nights'
+import PlanNight from './pages/PlanNight'
 import PlayerProfile from './pages/PlayerProfile'
 import Recorder from './pages/Recorder'
 import Settings from './pages/Settings'
 import SignIn from './pages/SignIn'
+import Teams from './pages/Teams'
 import Vote from './pages/Vote'
 import { AuthProvider, useAuth } from './state/auth'
 import { GroupProvider, useGroup } from './state/group'
 
 export default function App() {
+  // In a browser the website shows only the Install screen (Plans/Install-first-access.md).
+  if (appMode({ standalone: isStandalone(), allowBrowser }) === 'install') return <InstallScreen />
   if (!isConfigured) return <SetupNeeded />
   return (
     <BrowserRouter>
@@ -42,7 +47,6 @@ function AuthGate() {
     if (location.pathname === '/join' && code) writeLocal(KEYS.pendingInvite, code)
   }, [location])
 
-  if (location.pathname === '/install') return <Install />
   if (loading) return <Splash />
   if (!user) return <SignIn />
   return (
@@ -79,12 +83,13 @@ function GroupGate() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
-        <Route path="matches" element={<Matches />} />
-        <Route path="matches/new" element={<MatchEdit />} />
-        <Route path="matches/:id" element={<MatchPage />} />
-        <Route path="matches/:id/edit" element={<MatchEdit />} />
-        <Route path="matches/:id/record" element={<Recorder />} />
-        <Route path="matches/:id/vote" element={<Vote />} />
+        <Route path="nights" element={<Nights />} />
+        <Route path="nights/new" element={<PlanNight />} />
+        <Route path="nights/:id" element={<NightPage />} />
+        <Route path="nights/:id/edit" element={<PlanNight />} />
+        <Route path="nights/:id/teams" element={<Teams />} />
+        <Route path="nights/:id/record" element={<Recorder />} />
+        <Route path="nights/:id/vote" element={<Vote />} />
         <Route path="table" element={<Leaderboard />} />
         <Route path="players/:id" element={<PlayerProfile />} />
         <Route path="settings" element={<Settings />} />
@@ -98,8 +103,8 @@ function GroupGate() {
 
 function Splash() {
   return (
-    <div className="pitch-stripes flex min-h-dvh items-center justify-center">
-      <img src="/logo.svg" alt="Loading Ta7dy-El-La3eeba" className="size-24 animate-pulse motion-reduce:animate-none" />
+    <div className="honeycomb flex min-h-dvh items-center justify-center">
+      <img src="/logo.svg" alt="Loading 7GZ-KORA" className="h-28 animate-pulse motion-reduce:animate-none" />
     </div>
   )
 }
@@ -107,9 +112,9 @@ function Splash() {
 function NotFound({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="py-16 text-center">
-      <p className="font-display text-3xl font-bold">Offside!</p>
+      <p className="font-display text-3xl">Offside!</p>
       <p className="mt-1 text-muted">This page doesn't exist.</p>
-      <Link to="/" onClick={onRetry} className="mt-4 inline-block font-semibold text-pitch underline">
+      <Link to="/" onClick={onRetry} className="mt-4 inline-block font-semibold text-brand-ink underline">
         Back to home
       </Link>
     </div>
@@ -120,8 +125,8 @@ function NotFound({ onRetry }: { onRetry: () => void }) {
 function SetupNeeded() {
   return (
     <div className="mx-auto max-w-md px-6 py-16">
-      <img src="/logo.svg" alt="" className="mb-4 size-16" />
-      <h1 className="font-display text-3xl font-bold">Almost there</h1>
+      <img src="/mark-green.svg" alt="" className="mb-4 h-16" />
+      <h1 className="font-display text-3xl">Almost there</h1>
       <p className="mt-2">The app is running, but it isn't connected to Supabase yet.</p>
       <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm">
         <li>

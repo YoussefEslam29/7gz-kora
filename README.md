@@ -1,8 +1,8 @@
-# Ta7dy-El-La3eeba
+# 7GZ-KORA
 
-A free web app for our weekly football match. Record who played, who scored and who assisted. Everyone who played rates the others, and the app turns it all into a **rating out of 10** for every player, plus a season table and player profiles.
+A free app for our football nights. An admin plans each night, friends tap "I'm in" or "Out", and at the pitch everyone is checked in. The app records who scored and assisted, splits the pitch cost, and after the night everyone who played rates the others. It all turns into a **rating out of 10** for every player, plus a season table and player profiles.
 
-It is a PWA (a website that installs like an app), so friends add it to their home screen straight from the browser. No App Store, no Play Store, no developer accounts.
+It is a PWA (a website that installs like an app). In a browser the website shows only an **Install screen**; the app opens once it's on the home screen. No App Store, no Play Store, no developer accounts.
 
 **What it runs on (all free tiers):** React + TypeScript + Vite + Tailwind for the app, Supabase for the database and Google sign-in, Vercel for hosting.
 
@@ -25,20 +25,18 @@ It is a PWA (a website that installs like an app), so friends add it to their ho
 
 ## 1. What's built so far
 
-This is **Phase 1** from `football-idea.md`:
+**Phase 1** (`Plans/football-idea.md`) and **stage 1 of the 7GZ-KORA upgrade** (`Plans/README.md`):
 
-- Google sign-in, groups, invite codes (`KICK-7Q3F` style, plus a shareable link), admin and member roles
-- Create a match: tick who played, pick Team A or B, mark the goalkeepers. Late arrivals can be added later.
-- Fast goal logging: tap the scorer, then the assister (or "No assist"). There's an "I scored" shortcut and Undo.
-- Goal confirmation: the other player involved confirms. Anyone who played can dispute a goal; disputed goals don't count until an admin fixes them. Undisputed goals confirm themselves when voting closes.
-- Voting: 1–10 for every other player (or "Didn't see"), plus a Man of the Match pick. Votes stay secret for 24 hours, then everyone sees who voted what.
-- Ratings: stats plus peer votes, with a full breakdown for every player in every match
-- A season table (calendar year) with an all-time tab, sortable by rating, goals, assists, G+A, Man of the Match awards, matches played and clean sheets
-- Player profiles with season and all-time stats and match history
-- A "How ratings work" screen and an install guide
-- Light and dark mode; Arabic names display correctly
+- The 7GZ-KORA look (`Design/README.md`), light and dark mode; Arabic names display correctly
+- **Install first:** in a browser the website shows only the Install screen: the logo, the name, the steps for that phone, and the invite code when opened from an invite link. Sign-in happens inside the installed app. Search engines are kept out, and link previews show only the name and logo.
+- Google sign-in (plus an optional email-code sign-in), groups, invite codes, admins and members
+- **Nights:** an admin plans a night (date, time, pitch, length, cost, players per side, collector, player limit), pre-filled from the last one. Friends tap **I'm in** or **Out**. When the night is full, "I'm in" joins a waiting list, and the first person waiting moves up automatically when someone drops out. A planned night can be shared to WhatsApp.
+- **At the pitch:** the admin starts the night and checks people in (anyone in the group; the arrival time is saved; tap again when someone leaves early), picks Team A and Team B from the people checked in, and goals are logged as before.
+- **End night** opens voting. **Cancel night** (rain, not enough players, pitch problem, other) means nothing counts; a cancellation can be shared to WhatsApp.
+- **Money card:** the cost is split equally among everyone checked in, rounded up to a whole pound ("You owe 47 EGP to Ahmed"). The collector or an admin ticks people off.
+- Voting (1–10, "Didn't see", Man of the Match), ratings with a full breakdown, the season table and player profiles, as in Phase 1.
 
-**Not built yet** (Phase 2 and 3 in the brief): the "Lineup changed" button for mid-match team switches (the database already supports it), rating graphs and recent form, editing rating weights inside the app, reopening voting, an audit-log screen (edits are already recorded), push notifications, badges, fun votes, logging saves, and guest players.
+**Coming next** (`Plans/README.md`): games (many short games per night, a timer, Team C, swaps, penalties, admin-only goal recording, one rating per night across all games), the team suggester, punishments and loyalty points, Team of the Night and best duos.
 
 ---
 
@@ -58,14 +56,14 @@ You'll create two free accounts (Supabase and Vercel) and set up Google sign-in.
 ### Step 2: Create the Supabase project (database + sign-in)
 
 1. Go to <https://supabase.com>, sign up (signing in with GitHub is easiest) and click **New project**.
-2. Name it `ta7dy`, choose a strong database password (save it somewhere) and pick the **region closest to you**.
+2. Name it `7gz-kora`, choose a strong database password (save it somewhere) and pick the **region closest to you**.
 3. Wait a minute or two for it to finish setting up.
 
 ### Step 3: Create the database tables
 
 1. In your Supabase project, open **SQL Editor** (left menu), then **New query**.
 2. Open `supabase/migrations/20261023000100_schema.sql` from this folder, copy all of it, paste it into the editor and click **Run**. You should see "Success".
-3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`. **Order matters.**
+3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`. **Order matters.**
 4. (Optional, for trying things out) Run `supabase/seed.sql` too. See [Demo data](#demo-data).
 
 ### Step 4: Connect the app to Supabase (environment variables)
@@ -88,18 +86,24 @@ You'll create two free accounts (Supabase and Vercel) and set up Google sign-in.
 npm run dev
 ```
 
-Open <http://localhost:5173>. You should see the sign-in screen. Google sign-in won't work until Step 6.
+Open <http://localhost:5173>. In a normal browser you'll see the **Install screen**, because that's all the website shows (section 5). To use the app in your computer's browser while developing, add this line to `.env.local` and restart `npm run dev`:
+
+    VITE_ALLOW_BROWSER=true
+
+**Never add it to Vercel.** It would show the app to anyone with the link, so the build stops with an error if it's set there.
+
+You should then see the sign-in screen. Google sign-in won't work until Step 6.
 
 ### Step 6: Set up Google sign-in
 
 **6a. Get the callback address from Supabase.** In Supabase go to **Authentication → Sign In / Providers → Google**. Copy the **Callback URL** shown there (like `https://abcdefgh.supabase.co/auth/v1/callback`). Keep this tab open.
 
-**6b. Create a Google Cloud project.** Go to <https://console.cloud.google.com>, sign in with your Google account, and create a new project called `Ta7dy` (project picker at the top → **New project**).
+**6b. Create a Google Cloud project.** Go to <https://console.cloud.google.com>, sign in with your Google account, and create a new project called `7GZ-KORA` (project picker at the top → **New project**).
 
-**6c. Set up the consent screen** (the "Sign in to Ta7dy" page friends will see):
+**6c. Set up the consent screen** (the "Sign in to 7GZ-KORA" page friends will see):
 
 1. Open **Google Auth Platform** (search for it at the top) and click **Get started**.
-2. App name: `Ta7dy-El-La3eeba`. User support email: your email.
+2. App name: `7GZ-KORA`. User support email: your email.
 3. Audience: **External**.
 4. Contact email: your email. Agree and click **Create**.
 5. You don't need to add anything under **Data Access**. Supabase only asks for the basic details (name, email, profile photo), which need no review from Google.
@@ -128,12 +132,12 @@ Now **Continue with Google** works on your computer. Sign in, create your group,
 1. Upload this folder to GitHub. The repo is already linked to `github.com/YoussefEslam29/FOOTBALL-RATING-FRIENDS`, so commit and push.
 2. Go to <https://vercel.com>, sign up with GitHub, click **Add New → Project** and import the repo. Vercel detects Vite automatically.
 3. Before deploying, open **Environment Variables** and add the same two values from `.env.local` (`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`).
-4. Click **Deploy**. You get an address like `https://ta7dy.vercel.app`.
+4. Click **Deploy**. You get an address like `https://7gz-kora.vercel.app`.
 5. Add that address in two places:
-   - **Supabase → Authentication → URL Configuration**: set **Site URL** to `https://ta7dy.vercel.app`, and add it under **Redirect URLs** (keep the localhost one for testing).
-   - **Google Cloud → Clients → your client → Authorized JavaScript origins**: add `https://ta7dy.vercel.app`.
+   - **Supabase → Authentication → URL Configuration**: set **Site URL** to `https://7gz-kora.vercel.app`, and add it under **Redirect URLs** (keep the localhost one for testing).
+   - **Google Cloud → Clients → your client → Authorized JavaScript origins**: add `https://7gz-kora.vercel.app`.
 
-From now on, every push to GitHub updates the app for everyone automatically.
+From now on, every push to GitHub updates the app for everyone automatically. Link previews (WhatsApp etc.) use your Vercel production address for the logo automatically.
 
 > Netlify or Cloudflare Pages work too: build command `npm run build`, output folder `dist`, and the same two environment variables. The `public/_redirects` file already handles Netlify.
 
@@ -144,7 +148,7 @@ From now on, every push to GitHub updates the app for everyone automatically.
 The brief says to do this before inviting anyone, because Google sign-in inside an **iPhone Home Screen app** is known to be unreliable. On a real iPhone and a real Android phone:
 
 1. Open your Vercel address and install the app (see [section 5](#5-how-friends-install-the-app)).
-2. Open it **from the home screen icon** (not the browser) and tap **Continue with Google**.
+2. Open it **from the home screen icon** (not the browser) and tap **Continue with Google**. Remember: the website in the browser only shows the Install screen. Signing in always happens in the installed app.
 3. Check that you come back **inside the installed app**, signed in, and that the app stays signed in after closing and reopening it.
 
 If it works on both phones, invite your friends. If the iPhone gets stuck in Safari or comes back signed out, follow section 4.
@@ -156,7 +160,7 @@ If it works on both phones, invite your friends. If the iPhone gets stuck in Saf
 The app has a backup sign-in: a **6-digit code sent by email** that people type into the app. That works inside the installed iPhone app, because nothing has to redirect back into it. It's **switched off** until you set it up, because Supabase's built-in email sender only emails the project's own team (and only 2 emails an hour), so friends would get an error.
 
 1. **Connect an email sender in Supabase:** **Authentication → Emails → SMTP Settings**, then enable custom SMTP. A free option is your own Gmail account with an *App Password* (Google Account → Security → turn on 2-Step Verification → App passwords). The settings are host `smtp.gmail.com`, port `587`, username your Gmail address, password the app password. Brevo's free plan also works.
-2. **Put the code in the email:** **Authentication → Emails → Templates → Magic Link**. Make sure the message includes `{{ .Token }}`, for example: `Your Ta7dy sign-in code is {{ .Token }}`.
+2. **Put the code in the email:** **Authentication → Emails → Templates → Magic Link**. Make sure the message includes `{{ .Token }}`, for example: `Your 7GZ-KORA sign-in code is {{ .Token }}`.
 3. **Turn on the button:** add `VITE_ENABLE_EMAIL_CODE=true` to `.env.local` and to Vercel's Environment Variables, then redeploy.
 
 Installed iPhone apps then show the email-code option first; everyone else sees it under "Trouble with Google?". A friend who signs in by email with the same address as their Google account gets the same account.
@@ -165,21 +169,21 @@ Installed iPhone apps then show the email-code option first; everyone else sees 
 
 ## 5. How friends install the app
 
-Send this to the group, together with the invite code from **More → Share invite**:
+Send the group your invite link from **More → Share invite**. Opening it in a browser shows the **Install screen** with the steps for their phone and the invite code:
 
-> **iPhone:** open the link in **Safari** → tap **Share** (square with an arrow) → **Add to Home Screen** → **Add**. Then open Ta7dy from your home screen and sign in there.
+> **iPhone:** open the link in **Safari** (inside WhatsApp or Instagram, first choose **Open in Safari**) → tap **Share** → **Add to Home Screen** → **Add**. Then open 7GZ-KORA from the home screen and sign in there.
 >
-> **Android:** open the link in **Chrome** → tap the menu **⋮** → **Install app** (or **Add to Home screen**).
+> **Android:** open the link in **Chrome** → tap **Install app** (or the menu **⋮** → **Install app**).
 >
-> Sign in with Google, choose **Join with an invite code** and enter the code.
+> Sign in with Google, choose **Join with an invite code** and type the code from the Install screen.
 
-The app also has this guide built in at `/install`, and shows an "Add to home screen" tip until it's installed.
+On iPhone the code can't be carried into the installed app automatically, so people type it once. On Android it's usually filled in already.
 
 ---
 
 ## 6. How ratings work, and how to tune them
 
-Each player gets one rating per match, from 0 to 10, shown with one decimal:
+Each player gets one rating per night, from 0 to 10, shown with one decimal:
 
 ```
 rating = 65% × stats score + 35% × average peer vote
@@ -209,6 +213,8 @@ After 3–4 real matches, check whether the ratings feel fair. To change them fo
 
 New values apply to matches whose voting closes from then on. Matches that are already finished keep their ratings. To change the defaults for *new* groups, edit `rating_points_defaults()` and the column defaults in the rating SQL file.
 
+Stage 2 changes how team impact and result are counted across the many games of a night (see `Plans/Football-scenario.md` section 3).
+
 ---
 
 ## 7. Choices I made for you (please check)
@@ -219,14 +225,21 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 2. **Voting closes on its own** the next time anyone opens the app after the 24 hours. No server timer is needed. Until someone opens it, the match just stays in "voting".
 3. **Unconfirmed goals still count**; only *disputed* goals don't, until an admin confirms, edits or deletes them.
 4. **Players can still log goals while voting is open**, to catch up on ones they forgot. After voting closes, only admins can change goals, and ratings recalculate automatically.
-5. **New matches start "in progress" right away.** There are no scheduled/upcoming matches yet.
-6. **Voting needs a choice for every player** (a score or "Didn't see") plus a Man of the Match pick before you can save. It's about 30 seconds, and it keeps averages fair.
-7. **The table's 3-match rule applies to the Rating sort.** Goals, assists and the other stat sorts include everyone.
-8. **The demo group's first joiner becomes its admin.** In general, a group with no admins gives admin to the next person who joins.
-9. **The All-time tab is included now**, as section 0 of the brief asked.
-10. **Own goals aren't supported yet.** For now, log the goal for the team it counted for and pick "No assist", or ask me to add an "own goal" option.
-11. **The lineup is locked once voting closes.** Reopening voting is a Phase 2 admin tool.
-12. **Teams are labelled A (green) and B (orange, like training bibs).**
+5. **Voting needs a choice for every player** (a score or "Didn't see") plus a Man of the Match pick before you can save. It's about 30 seconds, and it keeps averages fair.
+6. **The table's 3-night rule applies to the Rating sort.** Goals, assists and the other stat sorts include everyone.
+7. **The demo group's first joiner becomes its admin.** In general, a group with no admins gives admin to the next person who joins.
+8. **The All-time tab is included now**, as section 0 of the brief asked.
+9. **Own goals aren't supported yet.** For now, log the goal for the team it counted for and pick "No assist", or ask me to add an "own goal" option.
+10. **The lineup is locked once voting closes.** Reopening voting is a later admin tool.
+11. **Teams wear bib colours:** A white, B orange, C blue (Team C arrives with games in stage 2).
+12. **Paid ticks are kept in their own small table** (`night_payments`), because on a night cancelled before anyone arrived, the people who pay never got checked in.
+13. **The share is worked out in the database** (`night_payer_rows`), like ratings, so every phone shows the same number.
+14. **Replies close when the night starts.** Check-in stays open while voting is open, to add someone who was forgotten; the shares then recalculate and ticks stay.
+15. **Nobody ticks off their own payment**, admins included. The collector counts as paid automatically.
+16. **The player limit** starts at 3 × players per side (18 for 6 a side) and follows the side size unless you change it. "No player limit" switches the waiting list off.
+17. **A cancelled night can't be un-cancelled**: plan a new one. The reason "Other" needs a short note.
+18. **Link-preview bots** (WhatsApp, Facebook, Telegram, X) may read the site so shared links show the name and logo; search engines are kept out.
+19. **"No reply"** counts group members with an account (the people who can answer).
 
 ---
 
@@ -234,7 +247,7 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 
 ### Demo data
 
-`supabase/seed.sql` creates a group called **Demo FC** with 12 fake players (one with an Arabic name), 4 finished matches (one from last year) and one match with voting still open. Run it in the SQL Editor after the three migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
+`supabase/seed.sql` creates a group called **Demo FC** with 12 fake players (one with an Arabic name), 4 finished nights (one from last year), a night cancelled for rain, yesterday's night with voting open and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money. Run it in the SQL Editor after the **four** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
 
 Ideally use a separate free Supabase project for testing. To remove the demo group later, run this in the SQL Editor:
 
@@ -248,25 +261,29 @@ delete from public.groups where name = 'Demo FC';
 npm test
 ```
 
-This runs 26 tests against the **real database code**, using PGlite (Postgres running inside Node), so it needs no Supabase account or Docker:
+This runs 69 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
 
 - `tests/db/rating.test.ts`: the two worked examples from the brief (Player A 8.3, Player B 5.6), plus a player with no votes, a goalkeeper clean sheet, a player present for only one of two stints, a match with no goals, all the caps and limits, saves, disputed goals, Man of the Match ties, and custom weights
-- `tests/db/flow.test.ts`: groups, invite codes, permissions, a full match from creation to results, secret votes, auto-closing, and admin fixes after closing
+- `tests/db/nights.test.ts`: planning a night, "I'm in" / "Out" and the waiting list, check-in, ending and cancelling a night, and the money split, including the worked example 600 EGP ÷ 13 players → 47 EGP each
+- `tests/db/flow.test.ts`: groups, invite codes, permissions, a full night from planning to results, secret votes, auto-closing, and admin fixes after closing
 - `tests/db/seed.test.ts`: the demo data loads correctly
+- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts and formatting
 
-Other commands: `npm run build` (production build), `npm run lint`, `npm run icons` (rebuild the app icons after changing `public/logo.svg`).
+Other commands: `npm run build` (production build), `npm run lint`, `npm run icons` (rebuild the app icons after changing `public/app-icon.svg`).
 
 ### Project layout
 
 ```
-supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3)
+supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4)
 supabase/seed.sql      Demo data
-src/lib/api.ts         Every call the app makes to Supabase
+src/lib/               Every call the app makes to Supabase (api.ts), plus small tested helpers
 src/pages/             One file per screen
-src/components/        Shared pieces (buttons, scoreboard, player grid, goal list...)
+src/components/        Shared pieces (buttons, scoreboard, money card, check-in list...)
 src/state/             Who is signed in, and which group they're viewing
-public/logo.svg        The logo; the icons are generated from it
+public/                Icons (from app-icon.svg), logo.svg (the white mark), robots.txt
 tests/db/              Tests for the database code
+Design/                The look: tokens, logo files, screens.html
+Plans/                 Everything agreed, and the stage plans in Plans/implementation/
 ```
 
 ---
@@ -294,5 +311,8 @@ Things to know:
 | After Google sign-in you land on the wrong address, or nothing happens | Check **Supabase → Authentication → URL Configuration**: the Site URL and Redirect URLs must include your exact app address. |
 | Friends see "access blocked" or are told the app is in testing | Publish the consent screen (Step 6e). |
 | "Email address not authorized" when asking for a code | Custom SMTP isn't set up yet (section 4, part 1). |
-| "permission denied" or "function ... does not exist" errors | One of the three SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
+| "permission denied" or "function ... does not exist" errors | One of the four SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
 | A friend can't see the group | They need to join with the invite code (More → Invite code). |
+| The website only shows the Install screen | That's on purpose: sign in from the installed app. For development on a computer, add `VITE_ALLOW_BROWSER=true` to `.env.local`. |
+| The Vercel build fails with "VITE_ALLOW_BROWSER must never be set on Vercel" | Remove that variable from the project's Environment Variables and redeploy. |
+| "Replies are closed" | The night has started or was cancelled. Replies are only for planned nights. |

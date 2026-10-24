@@ -48,8 +48,8 @@ export default function Leaderboard() {
             role="tab"
             aria-selected={year === y}
             onClick={() => setYear(y)}
-            className={`h-10 shrink-0 rounded-full px-4 font-display text-lg font-bold ${
-              year === y ? 'bg-primary text-white' : 'border border-line bg-card text-muted'
+            className={`h-10 shrink-0 rounded-full px-4 font-display text-lg ${
+              year === y ? 'border-2 border-[#0b0b0b] bg-brand text-on-brand' : 'border-[1.5px] border-line bg-paper text-muted'
             }`}
           >
             {y ?? 'All-time'}
@@ -65,7 +65,7 @@ export default function Leaderboard() {
             aria-pressed={sortKey === s.key}
             onClick={() => setSortKey(s.key)}
             className={`h-9 shrink-0 rounded-lg px-3 text-sm font-semibold ${
-              sortKey === s.key ? 'bg-ink text-card' : 'bg-card text-muted'
+              sortKey === s.key ? 'bg-ink text-paper' : 'bg-paper text-muted'
             }`}
           >
             {s.label}
@@ -77,19 +77,19 @@ export default function Leaderboard() {
       {board.loading && !board.data ? (
         <Loading />
       ) : rows.length === 0 ? (
-        <Empty title="No finished matches yet">Ratings appear here once a match's voting closes.</Empty>
+        <Empty title="No finished nights yet">Ratings appear here once a night's voting closes.</Empty>
       ) : (
         <>
           {ranked.length === 0 ? (
             <Empty title="Nobody has enough matches yet">
-              Players join the table after {minMatches} rated matches{year ? ' this season' : ''}.
+              Players join the table after {minMatches} rated nights{year ? ' this season' : ''}.
             </Empty>
           ) : (
             <Table rows={ranked} sortKey={sortKey} myPlayerId={myPlayerId} />
           )}
           {waiting.length > 0 && (
             <div className="mt-6">
-              <Heading className="mb-2">Needs {minMatches} matches to be ranked</Heading>
+              <Heading className="mb-2">Needs {minMatches} nights to be ranked</Heading>
               <Table rows={waiting} sortKey={sortKey} myPlayerId={myPlayerId} unranked />
             </div>
           )}
@@ -112,7 +112,7 @@ function Table({
 }) {
   const sort = SORTS.find((s) => s.key === sortKey)!
   return (
-    <ol className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+    <ol className="divide-y divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
       <li className="flex items-center gap-3 px-4 py-2 text-xs font-semibold tracking-wide text-muted uppercase" aria-hidden>
         <span className="w-6">#</span>
         <span className="flex-1">Player</span>
@@ -124,13 +124,13 @@ function Table({
         <li key={r.player_id}>
           <Link
             to={`/players/${r.player_id}`}
-            className={`flex min-h-13 items-center gap-3 px-4 py-2 ${r.player_id === myPlayerId ? 'bg-team-a-soft/60' : ''}`}
+            className={`flex min-h-13 items-center gap-3 px-4 py-2 ${r.player_id === myPlayerId ? 'bg-brand/15' : ''}`}
           >
-            <span className="tabular w-6 font-display text-lg font-bold text-muted">{unranked ? '–' : i + 1}</span>
+            <span className="tabular w-6 font-display text-lg text-muted">{unranked ? '–' : i + 1}</span>
             <Name className="flex-1 truncate font-semibold">{r.display_name}</Name>
             <span className="tabular w-10 text-right text-muted">{r.matches}</span>
             {sortKey !== 'rating' && sortKey !== 'matches' && (
-              <span className="tabular w-12 text-right font-display text-xl font-bold">{sort.value(r)}</span>
+              <span className="tabular w-12 text-right font-display text-xl">{sort.value(r)}</span>
             )}
             <span className="w-11 text-center">
               <RatingBadge value={r.avg_rating} size="sm" />

@@ -1,8 +1,8 @@
 -- =============================================================================
--- Ta7dy-El-La3eeba: database schema (file 1 of 3)
+-- 7GZ-KORA: database schema (file 1 of 4)
 --
 -- Tables, helper functions and Row Level Security (RLS).
--- Run the files in supabase/migrations in order (1, 2, 3) in the Supabase
+-- Run the files in supabase/migrations in order (1 to 4) in the Supabase
 -- SQL Editor, or with `npx supabase db push`.
 --
 -- Key idea: stats attach to a PLAYER, not directly to a user account.
@@ -94,32 +94,58 @@ create index group_members_user_idx on public.group_members (user_id);
 
 
 -- -----------------------------------------------------------------------------
--- Matches, attendance and stints (lineups)
+-- Nights, check-in and stints (lineups)
 -- -----------------------------------------------------------------------------
+-- A night is one pitch booking (about 2 hours). Only the screens say "night";
+-- in the database a night is a row in matches.
 create table public.matches (
-  id               uuid primary key default gen_random_uuid(),
-  group_id         uuid not null references public.groups (id) on delete cascade,
-  -- The day the match was played. The season is the calendar year of this date.
-  played_at        date not null default current_date,
-  location         text check (char_length(location) <= 80),
-  -- draft:   reserved for scheduled matches (not used by the v1 screens)
-  -- playing: match created, goals can be logged
-  -- voting:  match finished, players are voting
-  -- closed:  voting over, ratings are final
-  status           text not null default 'playing'
-                   check (status in ('draft', 'playing', 'voting', 'closed')),
-  voting_closes_at timestamptz,
-  closed_at        timestamptz,
-  created_by       uuid references public.profiles (id) on delete set null,
-  created_at       timestamptz not null default now()
+  id                  uuid primary key default gen_random_uuid(),
+  group_id            uuid not null references public.groups (id) on delete cascade,
+  -- The night's date. The season is the calendar year of this date.
+  played_at           date not null default current_date,
+  -- Planned start time (check-in times are compared with it later, for lateness).
+  starts_at           timestamptz,
+  -- The pitch: a name or a place.
+  location            text check (char_length(location) <= 80),
+  duration_minutes    int not null default 120 check (duration_minutes between 15 and 600),
+  -- Total pitch cost, split equally among everyone checked in (file 4: night_payer_rows).
+  cost                numeric not null default 0 check (cost between 0 and 100000),
+  currency            text not null default 'EGP',
+  -- Everyone pays their share to this player, who pays the pitch owner.
+  collector_player_id uuid references public.players (id) on delete set null,
+  players_per_side    int not null default 6 check (players_per_side between 5 and 11),
+  -- Default game length in minutes (a guide for the timer in stage 2).
+  game_minutes        int not null default 10 check (game_minutes between 1 and 120),
+  -- "I'm in" beyond this many puts people on the waiting list. NULL = no limit.
+  player_cap          int check (player_cap between 2 and 100),
+  -- draft:     planned; players reply "I'm in" or "Out"
+  -- playing:   the night is on: check-in, teams, goals
+  -- voting:    the night is over, players are voting
+  -- closed:    voting over, ratings are final
+  -- cancelled: called off; nothing counts (no votes, no ratings)
+  status              text not null default 'draft'
+                      check (status in ('draft', 'playing', 'voting', 'closed', 'cancelled')),
+  voting_closes_at    timestamptz,
+  closed_at           timestamptz,
+  cancel_reason       text check (cancel_reason in ('rain', 'not_enough_players', 'pitch_problem', 'other')),
+  cancel_note         text check (char_length(cancel_note) <= 200),
+  -- What the pitch still charges for a cancelled night (a lost deposit or fee).
+  cancel_fee          numeric not null default 0 check (cancel_fee >= 0),
+  cancelled_at        timestamptz,
+  created_by          uuid references public.profiles (id) on delete set null,
+  created_at          timestamptz not null default now()
 );
 
 create index matches_group_idx on public.matches (group_id, played_at desc);
 
--- Who played. Votes and goals can only reference players listed here.
+-- Who was checked in at the pitch: they play, vote and pay. Votes and goals
+-- can only reference players listed here.
 create table public.match_players (
-  match_id  uuid not null references public.matches (id) on delete cascade,
-  player_id uuid not null references public.players (id) on delete cascade,
+  match_id   uuid not null references public.matches (id) on delete cascade,
+  player_id  uuid not null references public.players (id) on delete cascade,
+  arrived_at timestamptz not null default now(),
+  -- Set when someone leaves early. They still count for the night (and the money).
+  left_at    timestamptz,
   primary key (match_id, player_id)
 );
 
@@ -237,6 +263,37 @@ create table public.extra_votes (
 
 
 -- -----------------------------------------------------------------------------
+-- Replies ("I'm in" / "Out") and rent payments
+-- -----------------------------------------------------------------------------
+-- One reply per player per planned night. Who actually came is match_players.
+create table public.rsvps (
+  match_id          uuid not null references public.matches (id) on delete cascade,
+  player_id         uuid not null references public.players (id) on delete cascade,
+  -- in: coming · waiting: on the waiting list (the night was full) · out: not coming
+  status            text not null check (status in ('in', 'waiting', 'out')),
+  -- When the status last changed (for "late cancel" in the punishments stage).
+  status_changed_at timestamptz not null default now(),
+  -- Place on the waiting list: when they tapped "I'm in" on a full night.
+  waiting_since     timestamptz,
+  -- When they moved up from the waiting list ("You're in!").
+  promoted_at       timestamptz,
+  -- On an "out": the waiting-list player who took this spot, if anyone did.
+  spot_taken_by     uuid,
+  primary key (match_id, player_id)
+);
+
+-- A tick per player who has paid their share back to the night's collector.
+create table public.night_payments (
+  match_id  uuid not null references public.matches (id) on delete cascade,
+  player_id uuid not null references public.players (id) on delete cascade,
+  paid_at   timestamptz not null default now(),
+  -- Who ticked it (the collector or an admin).
+  marked_by uuid references public.profiles (id) on delete set null,
+  primary key (match_id, player_id)
+);
+
+
+-- -----------------------------------------------------------------------------
 -- Audit log: a simple record of edits (goal changes, lineup changes, ...)
 -- -----------------------------------------------------------------------------
 create table public.audit_log (
@@ -316,6 +373,8 @@ alter table public.players       enable row level security;
 alter table public.group_members enable row level security;
 alter table public.matches       enable row level security;
 alter table public.match_players enable row level security;
+alter table public.rsvps          enable row level security;
+alter table public.night_payments enable row level security;
 alter table public.stints        enable row level security;
 alter table public.stint_players enable row level security;
 alter table public.goals         enable row level security;
@@ -366,6 +425,10 @@ create policy "members read lineups" on public.stint_players
 create policy "members read goals" on public.goals
   for select to authenticated using (public.is_group_member(public.match_group_id(match_id)));
 create policy "members read saves" on public.saves
+  for select to authenticated using (public.is_group_member(public.match_group_id(match_id)));
+create policy "members read replies" on public.rsvps
+  for select to authenticated using (public.is_group_member(public.match_group_id(match_id)));
+create policy "members read payments" on public.night_payments
   for select to authenticated using (public.is_group_member(public.match_group_id(match_id)));
 
 create policy "own votes, or all once closed" on public.ratings_votes

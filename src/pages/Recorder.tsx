@@ -60,21 +60,21 @@ export default function Recorder() {
 
   return (
     <div className="space-y-4">
-      <Link to={`/matches/${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-muted">
-        <BackIcon size={18} /> Match
+      <Link to={`/nights/${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-muted">
+        <BackIcon size={18} /> Night
       </Link>
 
-      <div className="sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-10 -mx-4 bg-ground/95 px-4 py-2 backdrop-blur">
+      <div className="sticky top-[calc(env(safe-area-inset-top)+4rem)] z-10 -mx-4 bg-ground/95 px-4 py-2 backdrop-blur">
         <Scoreboard score={scoreOf(goals)} />
       </div>
 
       {last && (
-        <div className="flex items-center gap-3 rounded-2xl bg-pitch-deep p-3 text-white" role="status">
+        <div className="flex items-center gap-3 rounded-card bg-ink p-3 text-paper" role="status">
           <BallIcon size={22} className="shrink-0" />
           <p className="flex-1 text-sm font-medium">
             <Name>{last.text}</Name>
           </p>
-          <button type="button" onClick={undo} disabled={busy} className="h-10 rounded-lg bg-white/15 px-3 text-sm font-semibold">
+          <button type="button" onClick={undo} disabled={busy} className="h-10 rounded-lg border-2 border-current px-3 text-sm font-semibold">
             Undo
           </button>
         </div>
@@ -85,11 +85,11 @@ export default function Recorder() {
         <Notice>
           {match.status === 'closed'
             ? 'Voting is closed, so goals are final. Ask an admin if something is wrong.'
-            : 'Only players in this match can log goals.'}
+            : "Only players on tonight's teams can log goals."}
         </Notice>
       ) : !scorer ? (
         <Card>
-          <h1 className="mb-3 font-display text-2xl font-bold">Who scored?</h1>
+          <h1 className="mb-3 font-display text-2xl">Who scored?</h1>
           {inLineup && (
             <Button size="lg" className="mb-4 w-full" onClick={() => setScorer(myPlayerId)}>
               <BallIcon size={22} /> I scored
@@ -100,7 +100,7 @@ export default function Recorder() {
       ) : (
         <Card>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h1 className="font-display text-2xl font-bold">
+            <h1 className="font-display text-2xl">
               Assist for <Name>{playerName(scorer)}</Name>?
             </h1>
             <Button size="sm" variant="ghost" onClick={() => setScorer(null)}>

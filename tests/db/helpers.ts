@@ -230,3 +230,64 @@ export type RatingRow = {
   is_mvp: boolean
   breakdown: Record<string, number | boolean | null>
 }
+
+// ---------------------------------------------------------------------------
+// Groups and nights, created through the app actions (as real users)
+// ---------------------------------------------------------------------------
+
+/** A group with an admin ("Captain") and members, each with their player id. */
+export async function setupGroup(db: PGlite, names: string[] = ['Omar', 'Ziad', 'محمد']) {
+  const admin = await createUser(db, 'Captain')
+  const [{ create_group: groupId }] = await rpc<{ create_group: string }>(db, admin, 'create_group', {
+    p_name: 'Thursday Football',
+    p_display_name: 'Captain',
+  })
+  const [{ invite_code: code }] = await selectAs<{ invite_code: string }>(
+    db, admin, `select invite_code from groups where id = $1`, [groupId],
+  )
+  const users: Record<string, string> = { admin }
+  for (const name of names) {
+    users[name] = await createUser(db, name)
+    await rpc(db, users[name], 'join_group', { p_code: code, p_display_name: name })
+  }
+  const players = await selectAs<{ user_id: string; id: string }>(
+    db, admin, `select user_id, id from players where group_id = $1`, [groupId],
+  )
+  const pid = (user: string) => players.find((p) => p.user_id === user)!.id
+  return { groupId, code, users, pid }
+}
+
+/** Night details as the "Plan a night" form sends them. */
+export function nightDetails(overrides: Record<string, unknown> = {}) {
+  return {
+    played_at: '2026-10-29',
+    starts_at: '2026-10-29T18:00:00Z', // 20:00 in Cairo
+    location: 'Club pitch 3',
+    duration_minutes: 120,
+    cost: 600,
+    players_per_side: 6,
+    collector_player_id: null,
+    game_minutes: 10,
+    player_cap: 18,
+    ...overrides,
+  }
+}
+
+/** Plans a night, starts it and checks the given players in. Returns the night's id. */
+export async function startNight(
+  db: PGlite,
+  admin: string,
+  groupId: string,
+  playerIds: string[],
+  details: Record<string, unknown> = nightDetails(),
+): Promise<string> {
+  const [{ plan_night: matchId }] = await rpc<{ plan_night: string }>(db, admin, 'plan_night', {
+    p_group_id: groupId,
+    p_night: details,
+  })
+  await rpc(db, admin, 'start_night', { p_match_id: matchId })
+  for (const playerId of playerIds) {
+    await rpc(db, admin, 'check_in', { p_match_id: matchId, p_player_id: playerId })
+  }
+  return matchId
+}

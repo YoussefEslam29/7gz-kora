@@ -2,7 +2,7 @@
 // acting as real signed-in users, the same way the app calls them.
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createDb, createUser, rpc, selectAs } from './helpers'
+import { createDb, createUser, nightDetails, rpc, selectAs, setupGroup, startNight } from './helpers'
 
 let db: PGlite
 
@@ -14,35 +14,13 @@ afterAll(async () => {
   await db.close()
 })
 
-/** A group with an admin and three members, each with their player id. */
-async function setupGroup() {
-  const admin = await createUser(db, 'Captain')
-  const [{ create_group: groupId }] = await rpc<{ create_group: string }>(db, admin, 'create_group', {
-    p_name: 'Thursday Football',
-    p_display_name: 'Captain',
-  })
-  const [{ invite_code: code }] = await selectAs<{ invite_code: string }>(
-    db, admin, `select invite_code from groups where id = $1`, [groupId],
-  )
-  const users: Record<string, string> = { admin }
-  for (const name of ['Omar', 'Ziad', 'محمد']) {
-    users[name] = await createUser(db, name)
-    await rpc(db, users[name], 'join_group', { p_code: code, p_display_name: name })
-  }
-  const players = await selectAs<{ user_id: string; id: string }>(
-    db, admin, `select user_id, id from players where group_id = $1`, [groupId],
-  )
-  const pid = (user: string) => players.find((p) => p.user_id === user)!.id
-  return { groupId, code, users, pid }
-}
-
 async function expectError(promise: Promise<unknown>, message: RegExp) {
   await expect(promise).rejects.toThrow(message)
 }
 
 describe('groups and invite codes', () => {
   it('the creator becomes admin and the group gets a code and rating config', async () => {
-    const { groupId, code, users } = await setupGroup()
+    const { groupId, code, users } = await setupGroup(db)
     expect(code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/)
 
     const members = await selectAs<{ role: string; user_id: string }>(
@@ -57,7 +35,7 @@ describe('groups and invite codes', () => {
   })
 
   it('accepts codes typed in lowercase without the dash, keeps Arabic names', async () => {
-    const { groupId, code, users } = await setupGroup()
+    const { groupId, code, users } = await setupGroup(db)
     const newbie = await createUser(db, 'Newbie')
     await rpc(db, newbie, 'join_group', { p_code: code.replace('-', '').toLowerCase(), p_display_name: '  Sam  ' })
     const names = await selectAs<{ display_name: string }>(
@@ -68,7 +46,7 @@ describe('groups and invite codes', () => {
   })
 
   it('rejects a wrong code, and a disabled code', async () => {
-    const { groupId, code, users } = await setupGroup()
+    const { groupId, code, users } = await setupGroup(db)
     const stranger = await createUser(db, 'Stranger')
     await expectError(rpc(db, stranger, 'join_group', { p_code: 'NOPE-NOPE', p_display_name: 'X' }), /not valid/)
 
@@ -77,7 +55,7 @@ describe('groups and invite codes', () => {
   })
 
   it('people outside the group cannot see it', async () => {
-    const { groupId } = await setupGroup()
+    const { groupId } = await setupGroup(db)
     const stranger = await createUser(db, 'Stranger')
     expect(await selectAs(db, stranger, `select * from groups where id = $1`, [groupId])).toHaveLength(0)
     expect(await selectAs(db, stranger, `select * from players where group_id = $1`, [groupId])).toHaveLength(0)
@@ -86,7 +64,7 @@ describe('groups and invite codes', () => {
   })
 
   it('only admins manage members, and the last admin cannot step down', async () => {
-    const { groupId, users } = await setupGroup()
+    const { groupId, users } = await setupGroup(db)
     await expectError(
       rpc(db, users.Omar, 'set_member_role', { p_group_id: groupId, p_user_id: users.Ziad, p_role: 'admin' }),
       /Only group admins/,
@@ -103,7 +81,7 @@ describe('groups and invite codes', () => {
   })
 
   it('members cannot write to tables directly', async () => {
-    const { groupId, users } = await setupGroup()
+    const { groupId, users } = await setupGroup(db)
     await expectError(
       selectAs(db, users.Omar, `insert into matches (group_id) values ($1)`, [groupId]),
       /permission denied/,
@@ -115,12 +93,12 @@ describe('groups and invite codes', () => {
   })
 })
 
-describe('a full match: create, goals, voting, results', () => {
+describe('a full night: plan, check in, goals, voting, results', () => {
   it('runs end to end with secret votes revealed at the end', async () => {
-    const { groupId, users, pid } = await setupGroup()
+    const { groupId, users, pid } = await setupGroup(db)
     const [captain, omar, ziad, mo] = [users.admin, users.Omar, users.Ziad, users['محمد']]
 
-    // Only admins create matches.
+    // Only admins plan and run nights.
     const lineup = [
       { player_id: pid(captain), team: 'A', is_goalkeeper: false },
       { player_id: pid(omar), team: 'A', is_goalkeeper: true },
@@ -128,12 +106,11 @@ describe('a full match: create, goals, voting, results', () => {
       { player_id: pid(mo), team: 'B', is_goalkeeper: true },
     ]
     await expectError(
-      rpc(db, omar, 'create_match', { p_group_id: groupId, p_played_at: '2026-10-22', p_location: 'Pitch 3', p_lineup: lineup }),
+      rpc(db, omar, 'plan_night', { p_group_id: groupId, p_night: nightDetails() }),
       /Only group admins/,
     )
-    const [{ create_match: matchId }] = await rpc<{ create_match: string }>(db, captain, 'create_match', {
-      p_group_id: groupId, p_played_at: '2026-10-22', p_location: 'Pitch 3', p_lineup: lineup,
-    })
+    const matchId = await startNight(db, captain, groupId, [captain, omar, ziad, mo].map(pid))
+    await rpc(db, captain, 'save_lineup', { p_match_id: matchId, p_lineup: lineup })
 
     // A member logs "I scored", assisted by the captain; the assister confirms.
     const [{ log_goal: goal1 }] = await rpc<{ log_goal: string }>(db, omar, 'log_goal', {
@@ -159,8 +136,8 @@ describe('a full match: create, goals, voting, results', () => {
       rpc(db, ziad, 'submit_votes', { p_match_id: matchId, p_votes: [], p_mvp_id: null }),
       /Voting is closed/,
     )
-    await expectError(rpc(db, omar, 'finish_match', { p_match_id: matchId }), /Only group admins/)
-    await rpc(db, captain, 'finish_match', { p_match_id: matchId })
+    await expectError(rpc(db, omar, 'end_night', { p_match_id: matchId }), /Only group admins/)
+    await rpc(db, captain, 'end_night', { p_match_id: matchId })
 
     // Voting rules.
     await expectError(
@@ -258,51 +235,54 @@ describe('a full match: create, goals, voting, results', () => {
 
     // Members cannot delete goals once voting is closed; the lineup is final.
     await expectError(rpc(db, ziad, 'delete_goal', { p_goal_id: goal3 }), /Voting is closed/)
-    await expectError(rpc(db, captain, 'save_lineup', { p_match_id: matchId, p_lineup: lineup }), /lineup is final/)
+    await expectError(rpc(db, captain, 'save_lineup', { p_match_id: matchId, p_lineup: lineup }), /night is final/)
 
     // Every edit left a trail.
     const audit = await selectAs<{ action: string }>(
       db, omar, `select action from audit_log where group_id = $1`, [groupId],
     )
     expect(audit.map((a) => a.action)).toEqual(
-      expect.arrayContaining(['match_created', 'goal_disputed', 'match_finished', 'goal_edited']),
+      expect.arrayContaining(['night_planned', 'goal_disputed', 'night_ended', 'goal_edited']),
     )
   })
 
-  it('lineup edits: one goalkeeper per team, scorers cannot be dropped', async () => {
-    const { groupId, users, pid } = await setupGroup()
+  it('lineup edits: one goalkeeper per team, scorers stay, late arrivals check in first', async () => {
+    const { groupId, users, pid } = await setupGroup(db)
+    const matchId = await startNight(db, users.admin, groupId, [pid(users.admin), pid(users.Omar), pid(users.Ziad)])
     const lineup = [
       { player_id: pid(users.admin), team: 'A', is_goalkeeper: true },
       { player_id: pid(users.Omar), team: 'A', is_goalkeeper: true },
       { player_id: pid(users.Ziad), team: 'B', is_goalkeeper: false },
     ]
     await expectError(
-      rpc(db, users.admin, 'create_match', { p_group_id: groupId, p_played_at: null, p_location: null, p_lineup: lineup }),
+      rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: lineup }),
       /one goalkeeper per team/,
     )
     lineup[1].is_goalkeeper = false
-    const [{ create_match: matchId }] = await rpc<{ create_match: string }>(db, users.admin, 'create_match', {
-      p_group_id: groupId, p_played_at: null, p_location: null, p_lineup: lineup,
-    })
+    await rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: lineup })
     await rpc(db, users.Ziad, 'log_goal', { p_match_id: matchId, p_scorer_id: pid(users.Ziad), p_assister_id: null })
     await expectError(
       rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: lineup.slice(0, 2) }),
       /Ziad scored or assisted/,
     )
 
-    // Late arrival joins team B: allowed mid-match.
-    await rpc(db, users.admin, 'save_lineup', {
-      p_match_id: matchId,
-      p_lineup: [...lineup, { player_id: pid(users['محمد']), team: 'B', is_goalkeeper: false }],
-    })
+    // A late arrival is checked in, then joins team B.
+    const late = [...lineup, { player_id: pid(users['محمد']), team: 'B', is_goalkeeper: false }]
+    await expectError(
+      rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: late }),
+      /Check in محمد first/,
+    )
+    await rpc(db, users.admin, 'check_in', { p_match_id: matchId, p_player_id: pid(users['محمد']) })
+    await rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: late })
     const players = await selectAs(db, users.Omar, `select * from match_players where match_id = $1`, [matchId])
     expect(players).toHaveLength(4)
   })
 
-  it('the person who logged a goal can undo it while the match is open', async () => {
-    const { groupId, users, pid } = await setupGroup()
-    const [{ create_match: matchId }] = await rpc<{ create_match: string }>(db, users.admin, 'create_match', {
-      p_group_id: groupId, p_played_at: null, p_location: null,
+  it('the person who logged a goal can undo it while the night is on', async () => {
+    const { groupId, users, pid } = await setupGroup(db)
+    const matchId = await startNight(db, users.admin, groupId, [pid(users.Omar), pid(users.Ziad)])
+    await rpc(db, users.admin, 'save_lineup', {
+      p_match_id: matchId,
       p_lineup: [
         { player_id: pid(users.Omar), team: 'A' },
         { player_id: pid(users.Ziad), team: 'B' },

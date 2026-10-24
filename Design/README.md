@@ -1,6 +1,6 @@
 # 7GZ-KORA Design System
 
-> The look of the app, based on the owner's logo (`logo/7gz-kora-logo-original.png`). **Open `screens.html` in a browser** to see everything below: the logo, colours, type, components and six app screens in light and dark mode. Decisions agreed with the owner on 2026-10-24 are marked ✔ and aren't re-asked.
+> The look of the app, based on the owner's logo (`logo/7gz-kora-logo-original.png`). **Open `screens.html` in a browser** to see everything below: the logo, colours, type, components and seven app screens in light and dark mode. Decisions agreed with the owner on 2026-10-24 are marked ✔ and aren't re-asked.
 
 ---
 
@@ -8,7 +8,7 @@
 
 | File | What it is |
 |---|---|
-| `screens.html` | The visual guide: logo, colours, type, components, six phone screens. It follows the device's light/dark setting. |
+| `screens.html` | The visual guide: logo, colours, type, components, seven phone screens (Install, Sign-in, Home, Live night, Vote, Results, Table). It follows the device's light/dark setting. |
 | `tokens.css` | Every colour, font, size and shape as CSS variables, plus the Tailwind v4 mapping. **The single source for the app.** |
 | `logo/7gz-kora-logo-original.png` | The owner's Canva logo: the reference everything is based on |
 | `logo/7gz-kora-logo.svg` | Full logo on green (like the original), as sharp vectors |
@@ -33,7 +33,7 @@ Street-pitch football: **bold black type on bright pitch green, with white line 
 
 | Use | File |
 |---|---|
-| App sign-in and loading screen | Mark (white) + "7GZ-KORA" in white, large, on green |
+| Install screen (all the website shows), sign-in and loading screen | Mark (white) + "7GZ-KORA" in white, large, on green. No tagline or description (see `Plans/Install-first-access.md`). |
 | App header | Mark (white, small) + **black** wordmark on green |
 | Home-screen icon ✔ | Boot on ball only, **no text** (text is unreadable at icon size) |
 | Documents, shirts, printing on white | `7gz-kora-logo-on-light.svg` |
@@ -128,6 +128,7 @@ Each one is shown working in `screens.html`. Copy the CSS from there.
 | **Card** | White, 1.5 px line border, 18 px corners, 14–16 px padding. Important cards (money, live game) get a 2 px ink border. |
 | **Money card** | Label "YOU OWE", amount in Archivo Black 28, "to Ahmed · 600 ÷ 13 players" |
 | **Empty state** | The green mark at 96 px, a one-line title, and the next action |
+| **Install screen** | Honeycomb green, white mark and lettering, a white card with the steps for the device, a black Install button where the browser supports one, and the invite code (with Copy) when opened from an invite link. Nothing else about the app. |
 
 ---
 

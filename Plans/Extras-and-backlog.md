@@ -66,7 +66,7 @@ The app makes ready-to-send text and opens the phone's share sheet (WhatsApp, or
 
 | When | What gets shared |
 |---|---|
-| Night planned | "Thursday 20:00 at Pitch 3 · 6 a side · 11 in so far. Tap to join: (link to the night)" |
+| Night planned | "Thursday 20:00 at Pitch 3 · 6 a side · 11 in so far. Open 7GZ-KORA to say if you're in." (Links open the Install screen in a browser: see `Install-first-access.md`.) |
 | Night cancelled | "Tonight is cancelled (rain)." |
 | After voting closes | Games played and results, Man of the Match, the top 3 ratings, Team of the Night, and "47 EGP each to Ahmed" |
 

@@ -129,7 +129,7 @@ Now **Continue with Google** works on your computer. Sign in, create your group,
 
 ### Step 7: Put it online (Vercel)
 
-1. Upload this folder to GitHub. The repo is already linked to `github.com/YoussefEslam29/FOOTBALL-RATING-FRIENDS`, so commit and push.
+1. Upload this folder to GitHub. The repo is already linked to `github.com/YoussefEslam29/7gz-kora`, so commit and push.
 2. Go to <https://vercel.com>, sign up with GitHub, click **Add New → Project** and import the repo. Vercel detects Vite automatically.
 3. Before deploying, open **Environment Variables** and add the same two values from `.env.local` (`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`).
 4. Click **Deploy**. You get an address like `https://7gz-kora.vercel.app`.

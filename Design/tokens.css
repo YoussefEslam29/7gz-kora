@@ -1,0 +1,120 @@
+/*
+  7GZ-KORA design tokens
+  ----------------------
+  The single source for colours, type, spacing and shape. See Design/README.md
+  for how and when to use each one.
+
+  In the app (Tailwind v4): copy the :root blocks into src/index.css and add
+  the @theme block at the bottom (it maps the tokens to Tailwind classes such
+  as bg-brand, text-ink, rounded-card).
+
+  Fonts (npm): @fontsource/archivo-black and @fontsource/archivo
+  (weights 400, 500, 700, 800). Web preview: Google Fonts "Archivo Black" +
+  "Archivo".
+*/
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- Brand ---------------------------------------------------------- */
+  --brand: #00bf63;          /* the logo green: header, primary buttons, highlights */
+  --brand-ink: #00733a;      /* green for TEXT and icons on white (6:1) */
+  --on-brand: #0b0b0b;       /* text on --brand: always black (8.6:1). Never white. */
+  --ink: #0b0b0b;            /* main text, borders of bold components */
+  --paper: #ffffff;          /* cards, sheets */
+  --ground: #f2f6f3;         /* page background */
+  --muted: #56625b;          /* secondary text (5.9:1 on white) */
+  --line: #dde5e0;           /* hairlines, card borders */
+  --gold: #f5b700;           /* Man of the Match star only */
+  --danger: #b42318;         /* errors, disputes, "Delete" */
+
+  /* ---- Teams (bib colours) ---------------------------------------------- */
+  --team-a: #ffffff;         /* Team A: no bibs (white) */
+  --team-a-text: #0b0b0b;
+  --team-b: #ff7a1a;         /* Team B: orange bibs */
+  --team-b-text: #0b0b0b;
+  --team-c: #3ba7ff;         /* Team C: blue bibs */
+  --team-c-text: #0b0b0b;
+
+  /* ---- Rating badges ---------------------------------------------------- */
+  --rate-top: #00733a;       /* 8.0+   white text */
+  --rate-top-text: #ffffff;
+  --rate-good: #00bf63;      /* 7.0-7.9 black text */
+  --rate-good-text: #0b0b0b;
+  --rate-ok: #ffc21a;        /* 6.0-6.9 black text */
+  --rate-ok-text: #0b0b0b;
+  --rate-low: #cfd8d2;       /* under 6 black text */
+  --rate-low-text: #0b0b0b;
+
+  /* ---- Type ------------------------------------------------------------- */
+  --font-display: "Archivo Black", "Archivo", system-ui, sans-serif;
+  --font-body: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif;
+
+  --text-score: 64px;        /* scoreboard numbers         line-height 1    */
+  --text-display: 34px;      /* page titles                line-height 1.05 */
+  --text-title: 22px;        /* card titles                line-height 1.15 */
+  --text-body: 16px;         /* everything else            line-height 1.5  */
+  --text-small: 13px;        /* secondary info             line-height 1.4  */
+  --text-label: 12px;        /* UPPERCASE labels, tracking 0.12em (the tagline style) */
+
+  /* ---- Space & shape ---------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;           /* page gutter */
+  --space-5: 24px;
+  --space-6: 32px;
+  --tap: 48px;               /* minimum tap target */
+  --radius-card: 18px;
+  --radius-button: 14px;
+  --radius-chip: 999px;
+  --border-bold: 2px;        /* the line-art weight: buttons, chips, focus */
+  --shadow-press: 0 3px 0 var(--ink);   /* "sticker" shadow on primary buttons */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-ink: #39e48c;    /* green text on dark */
+    --ink: #f2f5f3;          /* text and bold borders become light */
+    --paper: #141b17;
+    --ground: #0a0f0c;
+    --muted: #9aa8a0;
+    --line: #26302a;
+    --danger: #ff6b5e;
+    --rate-low: #3a4640;
+    --rate-low-text: #f2f5f3;
+    --shadow-press: 0 3px 0 #000000;
+    /* --brand, --on-brand and the team colours stay the same in dark mode */
+  }
+}
+
+/* Honeycomb texture from the ball, for green surfaces (header, sign-in). */
+.honeycomb {
+  background-color: var(--brand);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'%3E%3Cpath d='M28 0l28 16v32L28 64 0 48V16zM28 64v33M0 16L-28 0M56 16l28-16' fill='none' stroke='%23ffffff' stroke-opacity='.12' stroke-width='2'/%3E%3C/svg%3E");
+  background-size: 56px 97px;
+}
+
+/*
+  Tailwind v4 mapping (paste after @import "tailwindcss" in src/index.css):
+
+  @theme inline {
+    --font-display: var(--font-display);
+    --font-sans: var(--font-body);
+    --color-brand: var(--brand);
+    --color-brand-ink: var(--brand-ink);
+    --color-on-brand: var(--on-brand);
+    --color-ink: var(--ink);
+    --color-paper: var(--paper);
+    --color-ground: var(--ground);
+    --color-muted: var(--muted);
+    --color-line: var(--line);
+    --color-gold: var(--gold);
+    --color-danger: var(--danger);
+    --color-team-a: var(--team-a);
+    --color-team-b: var(--team-b);
+    --color-team-c: var(--team-c);
+    --radius-card: var(--radius-card);
+    --radius-button: var(--radius-button);
+  }
+*/

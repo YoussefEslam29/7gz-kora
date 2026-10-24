@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7GZ-KORA Design</title>
+<link rel="icon" href="icons/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* ---------- Page (the guide itself) ---------- */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--font-body); font-size: var(--text-body); line-height: 1.5; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 0 16px 80px; }
+  .hero { padding: 48px 16px 40px; text-align: center; }
+  .hero img { width: min(380px, 80vw); display: block; margin: 0 auto; }
+  .hero p { max-width: 560px; margin: 16px auto 0; color: var(--on-brand); font-weight: 500; }
+  section.block { margin-top: 56px; }
+  section.block > h2 { font-family: var(--font-display); font-size: var(--text-display); line-height: 1.05; margin: 0 0 6px; }
+  section.block > p.lead { margin: 0 0 20px; color: var(--muted); max-width: 720px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .tile { background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--radius-card); padding: 16px; }
+  .tile h3 { margin: 0 0 4px; font-size: 15px; }
+  .tile p { margin: 0; color: var(--muted); font-size: var(--text-small); }
+  .on { border-radius: 14px; padding: 20px; display: flex; align-items: center; justify-content: center; min-height: 160px; margin-bottom: 10px; }
+  .on img { max-height: 130px; max-width: 100%; }
+  .swatch { height: 84px; border-radius: 12px; margin-bottom: 10px; border: 1.5px solid var(--line); display: flex; align-items: flex-end; padding: 8px 10px; font-weight: 800; font-size: 13px; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+
+  /* ---------- Components (the reference for the app) ---------- */
+  .label { font-weight: 700; font-size: var(--text-label); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .title { font-family: var(--font-display); font-size: var(--text-title); line-height: 1.15; }
+  .card { background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--radius-card); padding: 14px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--tap); padding: 0 18px; border-radius: var(--radius-button);
+         font: 800 15px var(--font-body); letter-spacing: .05em; text-transform: uppercase; border: var(--border-bold) solid var(--ink); cursor: pointer;
+         transition: transform 80ms ease-out, box-shadow 80ms ease-out; }
+  .btn:active, .btn.pressed { transform: translateY(3px); box-shadow: none !important; }
+  .btn-primary { background: var(--brand); color: var(--on-brand); border-color: #0b0b0b; box-shadow: 0 3px 0 #0b0b0b; }
+  .btn-secondary { background: var(--paper); color: var(--ink); }
+  .btn-dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }   /* black in light mode, white in dark mode */
+  .btn-black { background: #0b0b0b; color: #fff; border-color: #0b0b0b; }                 /* always black: on green surfaces */
+  .btn-danger { background: var(--paper); color: var(--danger); border-color: var(--danger); }
+  .btn-block { width: 100%; }
+  .btn-big { min-height: 64px; font-size: 20px; border-radius: 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: var(--radius-chip); font: 800 11.5px var(--font-body); letter-spacing: .1em; text-transform: uppercase; border: var(--border-bold) solid #0b0b0b; color: #0b0b0b; white-space: nowrap; }
+  .team-a { background: var(--team-a); } .team-b { background: var(--team-b); } .team-c { background: var(--team-c); }
+  .status { border-color: var(--ink); color: var(--ink); background: transparent; }
+  .status.live { background: var(--brand); border-color: #0b0b0b; color: #0b0b0b; }
+  .status.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #0b0b0b; animation: pulse 1.2s infinite; }
+  .status.voting { background: var(--rate-ok); border-color: #0b0b0b; color: #0b0b0b; }
+  .status.final { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .btn:focus-visible, .input:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .btn:active, .btn.pressed { transition: none; transform: none; }
+    .status.live::before { animation: none; }
+  }
+  .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 32px; padding: 0 6px; border-radius: 10px; font: 20px var(--font-display); font-variant-numeric: tabular-nums; }
+  .r-top { background: var(--rate-top); color: var(--rate-top-text); } .r-good { background: var(--rate-good); color: var(--rate-good-text); }
+  .r-ok { background: var(--rate-ok); color: var(--rate-ok-text); } .r-low { background: var(--rate-low); color: var(--rate-low-text); }
+  .score { font-family: var(--font-display); font-size: var(--text-score); line-height: 1; font-variant-numeric: tabular-nums; }
+  .input { height: var(--tap); width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 0 14px; font: 500 16px var(--font-body); background: var(--paper); color: var(--ink); }
+  .input:focus { outline: none; border: var(--border-bold) solid var(--ink); }
+  .seg { display: inline-flex; border: var(--border-bold) solid var(--ink); border-radius: 12px; overflow: hidden; }
+  .seg span { width: 46px; height: 42px; display: flex; align-items: center; justify-content: center; font: 16px var(--font-display); }
+  .seg span + span { border-left: 1.5px solid var(--line); }
+  .seg .sel-out { background: var(--line); } .seg .sel-a { background: var(--team-a); color: #0b0b0b; box-shadow: inset 0 0 0 3px #0b0b0b; }
+  .seg .sel-b { background: var(--team-b); color: #0b0b0b; } .seg .sel-c { background: var(--team-c); color: #0b0b0b; }
+  .votegrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .votegrid span { height: 42px; border-radius: 10px; background: var(--ground); display: flex; align-items: center; justify-content: center; font: 19px var(--font-display); border: 1.5px solid transparent; }
+  .votegrid .sel { background: var(--brand); color: #0b0b0b; border-color: #0b0b0b; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .muted { color: var(--muted); } .small { font-size: var(--text-small); }
+  .name { font-weight: 700; text-align: left; }
+  .money { font-family: var(--font-display); font-size: 28px; line-height: 1; }
+  .star { color: var(--gold); }
+
+  /* ---------- Phone frames ---------- */
+  .phones { display: grid; gap: 28px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); justify-items: center; }
+  .phone { width: 330px; height: 690px; border-radius: 38px; border: 8px solid #0b0b0b; background-color: var(--ground); overflow: hidden; display: flex; flex-direction: column; position: relative; box-shadow: 0 18px 40px rgba(0,0,0,.18); }
+  .phone.honeycomb { background-color: var(--brand); }
+  .phone-caption { text-align: center; margin-top: 10px; font-weight: 700; }
+  .appbar { padding: 34px 14px 12px; display: flex; align-items: center; gap: 10px; color: var(--on-brand); }
+  .appbar img { width: 30px; height: 46px; object-fit: contain; }
+  .appbar .wm { font: 22px var(--font-display); line-height: 1; letter-spacing: .01em; }
+  .appbar .grp { font: 600 11.5px var(--font-body); opacity: .75; }
+  .screen { flex: 1; overflow: hidden; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .tabbar { height: 64px; background: var(--paper); border-top: 1.5px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr); }
+  .tabbar div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: 700 10.5px var(--font-body); color: var(--muted); }
+  .tabbar .on-tab { color: var(--ink); }
+  .tabbar .on-tab svg { background: var(--brand); color: #0b0b0b; border-radius: 999px; padding: 3px 12px; width: 46px; }
+  .tabbar svg { width: 22px; height: 22px; }
+  .list { display: flex; flex-direction: column; }
+  .list .item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1.5px solid var(--line); }
+  .list .item:last-child { border-bottom: 0; }
+  .rank { font: 18px var(--font-display); width: 18px; color: var(--muted); }
+  .sticky-bar { margin-top: auto; background: var(--paper); border: 1.5px solid var(--line); border-radius: 16px; padding: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Hero: the logo itself -->
+<header class="hero honeycomb">
+  <img src="logo/7gz-kora-logo-transparent.svg" alt="7GZ-KORA, ZNOOG-EL AAST">
+  <p>The 7GZ-KORA design system: bold black type on pitch green, white line art, and colours that stay readable outdoors.</p>
+</header>
+
+<main class="page">
+
+<!-- ================= LOGO ================= -->
+<section class="block">
+  <h2>Logo</h2>
+  <p class="lead">Your Canva logo, redrawn as sharp vector files. On green, the mark is white and the wordmark white; everywhere in the app's own text, use black on green. The tagline only appears in the logo files.</p>
+  <div class="grid">
+    <div class="tile"><div class="on honeycomb"><img src="logo/7gz-kora-mark-white.svg" alt=""></div><h3>Mark, white</h3><p>On the brand green or on black.</p></div>
+    <div class="tile"><div class="on" style="background:#fff;border:1.5px solid var(--line)"><img src="logo/7gz-kora-mark-green.svg" alt=""></div><h3>Mark, green</h3><p>On white or light backgrounds.</p></div>
+    <div class="tile"><div class="on" style="background:#fff;border:1.5px solid var(--line)"><img src="logo/7gz-kora-mark-black.svg" alt=""></div><h3>Mark, black</h3><p>One-colour print, stamps, stickers.</p></div>
+    <div class="tile"><div class="on" style="background:#e9eeea"><img src="icons/app-icon.svg" alt="" style="border-radius:22%;max-height:120px"></div><h3>App icon</h3><p>Boot on ball, no text. Shown at home-screen size below.</p></div>
+    <div class="tile"><div class="on" style="background:var(--brand)"><img src="logo/7gz-kora-wordmark-black.svg" alt="" style="max-height:34px"></div><h3>Wordmark, black</h3><p>The app header: black on green.</p></div>
+    <div class="tile"><div class="on" style="background:#fff;border:1.5px solid var(--line)"><img src="logo/7gz-kora-logo-on-light.svg" alt="" style="max-height:150px"></div><h3>Full logo, light</h3><p>Documents, shirts on white.</p></div>
+  </div>
+</section>
+
+<!-- ================= COLOUR ================= -->
+<section class="block">
+  <h2>Colour</h2>
+  <p class="lead">Pitch green, black and white do almost all the work. The rule that matters most: <strong>text on green is always black</strong>. White text on this green is too faint to read, especially in sunlight.</p>
+  <div class="grid">
+    <div class="tile"><div class="swatch" style="background:#00bf63;color:#0b0b0b">Aa 8.6:1</div><h3>Brand green <code>#00BF63</code></h3><p>Header, primary buttons, highlights, selected states. Black text only.</p></div>
+    <div class="tile"><div class="swatch" style="background:#0b0b0b;color:#fff">Aa</div><h3>Ink <code>#0B0B0B</code></h3><p>Text, bold borders, the sticker shadow on buttons.</p></div>
+    <div class="tile"><div class="swatch" style="background:#fff;color:#00733a">Aa 6:1</div><h3>Green ink <code>#00733A</code></h3><p>Green text, links and icons on white. Also the top rating badge.</p></div>
+    <div class="tile"><div class="swatch" style="background:#f2f6f3;color:#56625b">Aa</div><h3>Ground <code>#F2F6F3</code> · Muted <code>#56625B</code></h3><p>Page background and secondary text.</p></div>
+    <div class="tile"><div class="swatch" style="background:#fff;color:#0b0b0b;box-shadow:inset 0 0 0 2px #0b0b0b">Team A</div><h3>Team A <code>#FFFFFF</code></h3><p>No bibs. Always with a black outline.</p></div>
+    <div class="tile"><div class="swatch" style="background:#ff7a1a;color:#0b0b0b">Team B</div><h3>Team B <code>#FF7A1A</code></h3><p>Orange bibs. Black text (8:1).</p></div>
+    <div class="tile"><div class="swatch" style="background:#3ba7ff;color:#0b0b0b">Team C</div><h3>Team C <code>#3BA7FF</code></h3><p>Blue bibs, the waiting team. Black text (8:1).</p></div>
+    <div class="tile"><div class="swatch" style="background:#f5b700;color:#0b0b0b">★</div><h3>Gold <code>#F5B700</code></h3><p>Man of the Match star only.</p></div>
+  </div>
+  <div class="tile" style="margin-top:16px">
+    <h3>Rating badges</h3>
+    <p style="margin-bottom:10px">Same colour bands football apps use, so friends read them at a glance.</p>
+    <div class="row" style="flex-wrap:wrap"><span class="badge r-top">8.4</span> <span class="small muted">8.0+</span> <span class="badge r-good">7.6</span> <span class="small muted">7.0–7.9</span> <span class="badge r-ok">6.5</span> <span class="small muted">6.0–6.9</span> <span class="badge r-low">5.8</span> <span class="small muted">under 6</span></div>
+  </div>
+</section>
+
+<!-- ================= TYPE ================= -->
+<section class="block">
+  <h2>Type</h2>
+  <p class="lead"><strong>Archivo Black</strong> is the closest free match to the logo lettering, used for big numbers and titles. <strong>Archivo</strong> for everything else. Arabic names fall back to the phone's Arabic font automatically.</p>
+  <div class="tile">
+    <div class="score">3 – 2</div><p class="small muted">Score · Archivo Black 64</p><br>
+    <div style="font:var(--text-display) var(--font-display);line-height:1.05">Rate the players</div><p class="small muted">Page title · Archivo Black 34</p><br>
+    <div class="title">Club pitch 3 · 6 a side</div><p class="small muted">Card title · Archivo Black 22</p><br>
+    <div>Votes stay secret until voting closes. محمد and Omar are waiting.</div><p class="small muted">Body · Archivo 16 (Arabic falls back to the system font)</p><br>
+    <div class="label">Thu 30 Oct · 20:00</div><p class="small muted">Label · Archivo Bold 12, uppercase, wide spacing (the tagline style)</p>
+  </div>
+</section>
+
+<!-- ================= COMPONENTS ================= -->
+<section class="block">
+  <h2>Components</h2>
+  <p class="lead">Big, bold and tappable with gloves on. Primary buttons have a black "sticker" shadow that disappears when pressed, so every tap feels like a tap.</p>
+  <div class="grid">
+    <div class="tile"><h3>Buttons</h3><p style="margin-bottom:12px">Primary · secondary · black (on green) · dark · danger · pressed</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary">I'm in</button>
+        <button class="btn btn-secondary">Out</button>
+        <button class="btn btn-black">Continue with Google</button>
+        <button class="btn btn-dark">Game over</button>
+        <button class="btn btn-danger">Delete goal</button>
+        <button class="btn btn-primary pressed">Pressed</button>
+      </div></div>
+    <div class="tile"><h3>Chips</h3><p style="margin-bottom:12px">Teams and night status</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <span class="chip team-a">Team A</span><span class="chip team-b">Team B</span><span class="chip team-c">Team C</span>
+        <span class="chip status">Planned</span><span class="chip status live">Live</span><span class="chip status voting">Voting</span><span class="chip status final">Final</span><span class="chip status" style="border-color:var(--line);color:var(--muted)">Cancelled</span>
+      </div>
+      <h3 style="margin-top:18px">Team picker</h3><p style="margin-bottom:8px">Out / A / B / C, one tap</p>
+      <div class="seg"><span>Out</span><span class="sel-a">A</span><span>B</span><span>C</span></div>
+    </div>
+    <div class="tile"><h3>Vote row</h3><p style="margin-bottom:12px">1–10 in two rows of five, big targets</p>
+      <div class="votegrid"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span class="sel">7</span><span>8</span><span>9</span><span>10</span></div>
+      <h3 style="margin-top:18px">Input</h3><input class="input" value="Club pitch 3" aria-label="Pitch">
+    </div>
+    <div class="tile"><h3>Money card</h3><p style="margin-bottom:12px">What each player sees after a night</p>
+      <div class="card" style="border:2px solid var(--ink)"><div class="label">You owe</div><div class="money">47 EGP</div><div class="small">to <span class="name">Ahmed</span> · 600 ÷ 13 players</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SCREENS ================= -->
+<section class="block">
+  <h2>Screens</h2>
+  <p class="lead">The main screens of the match-night upgrade in the new look. Content follows <code>Plans/Football-scenario.md</code>. Open this page on your phone, or switch your computer to dark mode, to see the dark version.</p>
+  <div class="phones">
+
+    <!-- 1. Sign in -->
+    <div>
+      <div class="phone honeycomb" style="justify-content:center;align-items:center;text-align:center;padding:24px">
+        <img src="logo/7gz-kora-mark-white.svg" alt="" style="height:170px">
+        <div style="font:44px var(--font-display);color:#fff;margin-top:10px;line-height:1">7GZ-KORA</div>
+        <p style="color:#0b0b0b;font-weight:600;margin:12px 8px 28px">Rate every match night with the people who played it.</p>
+        <button class="btn btn-black btn-block btn-big" style="font-size:16px">Continue with Google</button>
+        <p style="margin-top:22px;font-size:13px;font-weight:700;color:#0b0b0b;text-decoration:underline">How to install the app</p>
+      </div>
+      <p class="phone-caption">Sign in</p>
+    </div>
+
+    <!-- 2. Home -->
+    <div>
+      <div class="phone">
+        <div class="appbar honeycomb"><img src="logo/7gz-kora-mark-white.svg" alt=""><div><div class="wm">7GZ-KORA</div><div class="grp">Thursday Football</div></div></div>
+        <div class="screen">
+          <div class="card">
+            <div class="row" style="justify-content:space-between"><span class="label">Thu 30 Oct · 20:00</span><span class="chip status">Planned</span></div>
+            <div class="title" style="margin-top:6px">Club pitch 3</div>
+            <div class="small muted">6 a side · 2 hours · 600 EGP</div>
+            <div class="small" style="margin:8px 0 12px"><b>11 in</b> · 2 out · 4 no reply</div>
+            <div class="row"><button class="btn btn-primary" style="flex:1">I'm in</button><button class="btn btn-secondary" style="flex:1">Out</button></div>
+          </div>
+          <div class="card" style="border:2px solid var(--ink)"><div class="row" style="justify-content:space-between"><div><div class="label">You owe</div><div class="money">47 EGP</div><div class="small">to <b>Ahmed</b> for Thu 23 Oct</div></div><span class="chip status voting">Unpaid</span></div></div>
+          <div class="card" style="background:var(--brand);border-color:#0b0b0b;color:#0b0b0b"><div class="label" style="color:#0b0b0b">Voting · Thu 23 Oct</div><div class="title">Vote now, closes in 6h</div></div>
+          <div class="card">
+            <div class="label" style="margin-bottom:4px">Season 2026 · top 3</div>
+            <div class="list">
+              <div class="item"><span class="rank">1</span><span class="name" style="flex:1">Karim</span><span class="badge r-top">8.1</span></div>
+              <div class="item"><span class="rank">2</span><span class="name" style="flex:1">Omar</span><span class="badge r-good">7.6</span></div>
+              <div class="item"><span class="rank">3</span><span class="name" style="flex:1" dir="auto">محمد</span><span class="badge r-good">7.2</span></div>
+            </div>
+          </div>
+        </div>
+        <nav class="tabbar">
+          <div class="on-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m12 7.5 4 2.9-1.5 4.7h-5L8 10.4z"/></svg>Nights</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/></svg>Table</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Me</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>More</div>
+        </nav>
+      </div>
+      <p class="phone-caption">Home</p>
+    </div>
+
+    <!-- 3. Live night: admin control room -->
+    <div>
+      <div class="phone">
+        <div class="appbar honeycomb"><img src="logo/7gz-kora-mark-white.svg" alt=""><div><div class="wm">7GZ-KORA</div><div class="grp">Live · Club pitch 3</div></div></div>
+        <div class="screen">
+          <div class="card" style="text-align:center">
+            <div class="row" style="justify-content:space-between"><span class="label">Game 4</span><span class="chip status live">Live</span></div>
+            <div class="row" style="justify-content:space-between;margin-top:10px"><span class="chip team-a">Team A</span><span class="chip team-b">Team B</span></div>
+            <div class="score" style="white-space:nowrap;margin-top:2px">2 – 1</div>
+            <div style="font:30px var(--font-display);font-variant-numeric:tabular-nums;margin-top:4px">07:42 <span class="small muted" style="font-family:var(--font-body)">of 10:00</span></div>
+          </div>
+          <button class="btn btn-primary btn-big btn-block"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 7.5 4 2.9-1.5 4.7h-5L8 10.4z"/></svg> Goal</button>
+          <div class="row"><button class="btn btn-secondary" style="flex:1">Swap</button><button class="btn btn-secondary" style="flex:1">Sub in</button></div>
+          <button class="btn btn-dark btn-block">Game over</button>
+          <div class="card">
+            <div class="row" style="justify-content:space-between"><span class="label">Waiting</span><span class="chip team-c">Team C</span></div>
+            <div class="small" style="margin-top:6px">Hassan · Tarek · Seif · Ali · Mahmoud</div>
+          </div>
+          <div class="card">
+            <div class="label">Bench · minutes tonight</div>
+            <div class="small" style="margin:6px 0 10px"><b>Ziad</b> 12 min · <b>Mostafa</b> 20 min</div>
+            <div class="small" style="background:var(--ground);border-radius:10px;padding:8px 10px">Suggested sub: <b>Ziad</b> in for <b>Omar</b> (38 min)</div>
+          </div>
+        </div>
+      </div>
+      <p class="phone-caption">Live night (admin)</p>
+    </div>
+
+    <!-- 4. Vote -->
+    <div>
+      <div class="phone">
+        <div class="appbar honeycomb"><img src="logo/7gz-kora-mark-white.svg" alt=""><div><div class="wm">7GZ-KORA</div><div class="grp">Thursday Football</div></div></div>
+        <div class="screen">
+          <div><div style="font:28px var(--font-display);line-height:1.05">Rate the players</div><div class="small muted">Secret until voting closes in 23h 58m</div></div>
+          <div class="card">
+            <div class="row" style="margin-bottom:8px"><span class="name" style="flex:1;font-size:17px">Omar</span><span class="chip team-b">Team B</span><span class="chip" style="background:transparent;border-color:var(--line);color:var(--muted)">Didn't see</span></div>
+            <div class="votegrid"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span class="sel">7</span><span>8</span><span>9</span><span>10</span></div>
+          </div>
+          <div class="card">
+            <div class="row" style="margin-bottom:8px"><span class="name" style="flex:1;font-size:17px" dir="auto">محمد</span><span class="chip team-a">Team A</span><span class="chip" style="background:transparent;border-color:var(--line);color:var(--muted)">Didn't see</span></div>
+            <div class="votegrid"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span class="sel">9</span><span>10</span></div>
+          </div>
+          <div class="sticky-bar"><div class="small muted" style="text-align:center;margin-bottom:6px">9 of 13 rated · pick a Man of the Match</div><button class="btn btn-primary btn-block" style="opacity:.55">Save votes</button></div>
+        </div>
+      </div>
+      <p class="phone-caption">Vote</p>
+    </div>
+
+    <!-- 5. Results -->
+    <div>
+      <div class="phone">
+        <div class="appbar honeycomb"><img src="logo/7gz-kora-mark-white.svg" alt=""><div><div class="wm">7GZ-KORA</div><div class="grp">Thursday Football</div></div></div>
+        <div class="screen">
+          <div class="row" style="justify-content:space-between"><div><div class="label">Thu 23 Oct · 9 games</div><div class="title">Club pitch 3</div></div><span class="chip status final">Final</span></div>
+          <div class="card" style="border:2px solid var(--gold)"><div class="row"><span class="star" style="font-size:34px">★</span><div><div class="label">Man of the Match</div><div class="title">Karim <span class="small muted" style="font-family:var(--font-body)">5 votes</span></div></div></div></div>
+          <div class="card">
+            <div class="label" style="margin-bottom:2px">Ratings</div>
+            <div class="list">
+              <div class="item"><span class="rank">1</span><div style="flex:1"><div class="name">Karim <span class="star">★</span></div><div class="small muted">3 goals · 1 assist</div></div><span class="badge r-top">8.4</span></div>
+              <div class="item"><span class="rank">2</span><div style="flex:1"><div class="name">Omar</div><div class="small muted">1 goal · clean sheet</div></div><span class="badge r-good">7.6</span></div>
+              <div class="item"><span class="rank">3</span><div style="flex:1"><div class="name">Ziad</div><div class="small muted">2 assists</div></div><span class="badge r-good">7.1</span></div>
+              <div class="item"><span class="rank">4</span><div style="flex:1"><div class="name">Tarek</div><div class="small muted">Late · discipline −0.3</div></div><span class="badge r-ok">6.5</span></div>
+              <div class="item"><span class="rank">5</span><div style="flex:1"><div class="name">Seif</div><div class="small muted">stats only</div></div><span class="badge r-low">5.8</span></div>
+            </div>
+          </div>
+          <div class="card" style="border:2px solid var(--ink)"><div class="row" style="justify-content:space-between"><div><div class="label">Money · collector Ahmed</div><div class="money" style="font-size:22px">423 / 611 EGP</div></div><span class="chip status voting">4 unpaid</span></div></div>
+        </div>
+      </div>
+      <p class="phone-caption">Night results</p>
+    </div>
+
+    <!-- 6. Table: Loyalty -->
+    <div>
+      <div class="phone">
+        <div class="appbar honeycomb"><img src="logo/7gz-kora-mark-white.svg" alt=""><div><div class="wm">7GZ-KORA</div><div class="grp">Thursday Football</div></div></div>
+        <div class="screen">
+          <div style="font:28px var(--font-display);line-height:1.05">Table</div>
+          <div class="row" style="gap:6px"><button class="btn btn-secondary" style="min-height:38px;font-size:12px;padding:0 12px">Ratings</button><button class="btn btn-primary" style="min-height:38px;font-size:12px;padding:0 12px">Loyalty</button><button class="btn btn-secondary" style="min-height:38px;font-size:12px;padding:0 12px">Duos</button></div>
+          <div class="card">
+            <div class="list">
+              <div class="item"><span class="rank">1</span><div style="flex:1"><div class="name">Mostafa</div><div class="small muted">Never Late · Man of His Word</div></div><span class="money" style="font-size:22px;color:var(--brand-ink)">+58</span></div>
+              <div class="item"><span class="rank">2</span><div style="flex:1"><div class="name">Karim</div><div class="small muted">Fair Play</div></div><span class="money" style="font-size:22px;color:var(--brand-ink)">+51</span></div>
+              <div class="item"><span class="rank">3</span><div style="flex:1"><div class="name" dir="auto">محمد</div><div class="small muted">12 nights · 92% on time</div></div><span class="money" style="font-size:22px;color:var(--brand-ink)">+44</span></div>
+              <div class="item"><span class="rank">4</span><div style="flex:1"><div class="name">Tarek</div><div class="small muted">3 late · 1 no-show</div></div><span class="money" style="font-size:22px">+9</span></div>
+            </div>
+          </div>
+          <div class="card"><div class="label">Best duo this season</div><div class="title">Karim + Ziad</div><div class="small muted">Won 8 of 10 together · 6 goal combos</div></div>
+        </div>
+      </div>
+      <p class="phone-caption">Table · Loyalty</p>
+    </div>
+
+  </div>
+</section>
+
+</main>
+</body>
+</html>

@@ -11,9 +11,11 @@ Everything agreed for the app lives in this folder. **Read every file before bui
 | 3 | `Punishments-and-loyalty.md` | Punishments (late, absences, injuries, time-wasting), loyalty points, badges | Agreed 2026-10-24, not built |
 | 4 | `Extras-and-backlog.md` | Cancelled nights, waiting list, goalkeeper rotation, playing time, WhatsApp sharing, Team of the Night, best duos, **plus the backlog and rejected ideas** | Agreed 2026-10-24, not built |
 
+**Design:** the app's look (colours, fonts, logo, icons, components, screen designs) is in **`Design/README.md`** at the project root. Open `Design/screens.html` in a browser to see it. It's applied in stage 1, together with the rename to 7GZ-KORA.
+
 ## Build order (all files together)
 
-1. **Nights:** rename to 7GZ-KORA, plan a night, RSVP, check-in, Money card, plus cancelled nights, the waiting list and sharing a planned night to WhatsApp
+1. **Nights:** rename to 7GZ-KORA and apply the new design (`Design/README.md` section 9), plan a night, RSVP, check-in, Money card, plus cancelled nights, the waiting list and sharing a planned night to WhatsApp
 2. **Games:** games, timer, team board, swaps, penalties, admin-only recording, per-night ratings (with the team-impact fix), plus goalkeeper rotation and playing time
 3. **Team suggester**
 4. **Punishments and loyalty points**

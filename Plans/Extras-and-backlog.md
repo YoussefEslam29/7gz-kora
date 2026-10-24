@@ -1,3 +1,4 @@
+
 # 7GZ-KORA: Extra Features and Backlog
 
 > More features for the match-night upgrade, agreed with the owner on 2026-10-24. Read `Football-scenario.md` first: this file builds on its nights, games, lineup periods and check-in. Section 8 lists what was **not** chosen (backlog) and what was **rejected**, so later sessions don't suggest them again. Every number is a suggested default the owner can change.

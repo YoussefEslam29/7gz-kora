@@ -27,4 +27,4 @@ Finish and test each stage before starting the next. Every plan file has worked 
 ## Before building
 
 - Check with the owner whether the setup in the root `README.md` is done: the Supabase project, Google sign-in, the Vercel deploy, and the real-iPhone sign-in test from `football-idea.md`.
-- Start the build session with: *"Read Plans/README.md and every file in Plans/, then write the implementation plan for stage 1."*
+- Start the build session with: *"Read Plans/NEXT-SESSION-PROMPT.md and follow it."* That file holds the full instructions for the build session.

@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from 'react-router'
+import * as m from 'motion/react-m'
+import { NavLink, Outlet, useLocation } from 'react-router'
+import { rise, spring } from '../lib/motion'
 import { useGroup } from '../state/group'
 import { HomeIcon, MatchesIcon, MoreIcon, PersonIcon, TableIcon } from './icons'
 import { Name } from './ui'
@@ -6,6 +8,7 @@ import { Name } from './ui'
 /** Honeycomb header + content + bottom tabs (one-handed navigation). */
 export default function Layout() {
   const { group, myPlayerId } = useGroup()
+  const { pathname } = useLocation()
 
   const tabs = [
     { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -32,7 +35,10 @@ export default function Layout() {
       </header>
 
       <main className="mx-auto w-full max-w-xl flex-1 px-4 pt-4 pb-28">
-        <Outlet />
+        {/* Each screen slides in when you open it. */}
+        <m.div key={pathname} {...rise}>
+          <Outlet />
+        </m.div>
       </main>
 
       <nav
@@ -45,12 +51,20 @@ export default function Layout() {
               <NavLink
                 to={to}
                 end={end}
-                className="group flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-bold text-muted aria-[current=page]:text-ink"
+                className="flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-bold text-muted aria-[current=page]:text-ink"
               >
-                <span className="rounded-full px-3 py-[3px] group-aria-[current=page]:bg-brand group-aria-[current=page]:text-on-brand">
-                  <Icon size={22} />
-                </span>
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <span className="relative rounded-full px-3 py-[3px]">
+                      {/* The green bubble glides to the tab you tap. */}
+                      {isActive && (
+                        <m.span layoutId="tab-bubble" transition={spring} className="absolute inset-0 rounded-full bg-brand" />
+                      )}
+                      <Icon size={22} className={`relative ${isActive ? 'text-on-brand' : ''}`} />
+                    </span>
+                    {label}
+                  </>
+                )}
               </NavLink>
             </li>
           ))}

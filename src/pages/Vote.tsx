@@ -1,7 +1,9 @@
+import * as m from 'motion/react-m'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import { useToast } from '../components/feedback'
 import { BackIcon, StarIcon } from '../components/icons'
-import { Button, ErrorNote, Loading, Name, Notice, PageTitle, TeamTag } from '../components/ui'
+import { Button, ErrorNote, Loading, Name, Notice, PageTitle, ScoreButton, TeamTag } from '../components/ui'
 import * as api from '../lib/api'
 import { errorMessage, isPast, timeLeft } from '../lib/format'
 import type { MatchDetail } from '../lib/types'
@@ -59,6 +61,7 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
   const [mvp, setMvp] = useState<string | null>(() => mvpVotes.find((v) => v.voter_id === myPlayerId)?.target_id ?? null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   // The team each player ended the night on (the team board).
   const teamOf = (pid: string) => checkIns.find((c) => c.player_id === pid)?.team ?? undefined
@@ -85,6 +88,7 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
         c === 'didnt_see' ? { target_id, didnt_see: true } : { target_id, score: c },
       )
       await api.submitVotes(match.id, list, mvp)
+      toast('Votes saved')
       navigate(`/nights/${match.id}`)
     } catch (e) {
       setError(errorMessage(e))
@@ -120,17 +124,7 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
               </div>
               <div className="grid grid-cols-5 gap-1.5" role="group" aria-label={`Score for ${playerName(pid)}`}>
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={choice === n}
-                    onClick={() => choose(pid, n)}
-                    className={`press tabular h-[42px] rounded-[10px] border-[1.5px] font-display text-xl ${
-                      choice === n ? 'border-[#0b0b0b] bg-brand text-on-brand' : 'border-transparent bg-ground text-ink'
-                    }`}
-                  >
-                    {n}
-                  </button>
+                  <ScoreButton key={n} n={n} selected={choice === n} onClick={() => choose(pid, n)} />
                 ))}
               </div>
             </li>
@@ -144,17 +138,18 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
         </h2>
         <div className="flex flex-wrap gap-2">
           {targets.map((pid) => (
-            <button
+            <m.button
               key={pid}
               type="button"
+              whileTap={{ scale: 0.94 }}
               aria-pressed={mvp === pid}
               onClick={() => setMvp(pid)}
-              className={`press min-h-11 rounded-full border px-4 font-semibold ${
+              className={`min-h-11 rounded-full border px-4 font-semibold ${
                 mvp === pid ? 'border-gold bg-gold text-[#1a1400]' : 'border-line bg-ground'
               }`}
             >
               <Name>{playerName(pid)}</Name>
-            </button>
+            </m.button>
           ))}
         </div>
       </section>
@@ -162,6 +157,13 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
       <ErrorNote message={error} />
 
       <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-10 mt-4 rounded-card border-[1.5px] border-line bg-paper/95 p-3 backdrop-blur">
+        <div aria-hidden className="mb-2 h-1.5 overflow-hidden rounded-full bg-line">
+          <m.div
+            className="h-full rounded-full bg-brand"
+            animate={{ width: `${(done / Math.max(1, targets.length)) * 100}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
         <p className="mb-2 text-center text-sm text-muted">
           {done} of {targets.length} rated · {mvp ? 'Man of the Match picked' : 'pick a Man of the Match'}
         </p>

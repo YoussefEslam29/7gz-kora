@@ -17,7 +17,7 @@ The root `CLAUDE.md` loads automatically and holds the working rules. Follow it;
 ## 2. Read these first, in order, before writing any code
 
 1. `Plans/README.md`: the index and the combined build order
-2. `Plans/football-idea.md`, `Plans/Football-scenario.md`, `Plans/Punishments-and-loyalty.md`, `Plans/Extras-and-backlog.md` (it also lists the **rejected** ideas: never build those), `Plans/Install-first-access.md`
+2. `Plans/football-idea.md`, `Plans/Football-scenario.md`, `Plans/Punishments-and-loyalty.md`, `Plans/Extras-and-backlog.md` (it also lists the **rejected** ideas: never build those), `Plans/Install-first-access.md`, `Plans/Player-card-and-motion.md`
 3. `Design/README.md` (open `Design/screens.html` too; tokens in `Design/tokens.css`)
 4. `Plans/implementation/stage-2.md`: the most recent stage plan. Use it as the model for format and level of detail, and read its **"Decisions this plan makes"** and **"Changes made during the build"** sections. Skim `stage-1.md` the same way.
 5. The root `README.md` (setup, behaviour, the choices list in section 7)
@@ -29,9 +29,10 @@ Then the code: `supabase/migrations/*.sql` (5 files), `supabase/seed.sql`, `test
 - **Phase 1** built (`6ce68a9`). **Stage 1** (rename, design, install-first access, nights, RSVP and waiting list, check-in, money card, cancelled nights, WhatsApp share of a planned night) built in `e40931d`. **Stage 2** (games, team board A/B/C/bench, timer, swaps, penalties, admin-only goals, minutes played and in goal, keeper and sub suggestions, one rating per night with the team-impact fix) built in `880fe2e`.
 - After that the owner added a public `/privacy.html` (`650c347`, needed so Google sign-in can be published; it's the one public page besides the Install screen, recorded in `Plans/Install-first-access.md`) and the `@supabase/server` dependency (`4f5a994`).
 - **Stage 3** (the team suggester: `src/lib/suggest.ts`, Suggest teams on the team board, the "Extra team from N players" setting in migration file 6, `20261025000200_team_suggester.sql`) built on 2026-10-25; see `Plans/implementation/stage-3.md`.
-- **129 tests** pass (`npm test`); `npx tsc -b`, `npm run lint` (0 warnings) and `npm run build` are clean.
-- **A real Supabase project exists.** Files 1-5 have been run on it; the owner was asked to run file 6 before pushing stage 3. At the start, ask whether they have (multiple choice).
-- **Never edit an existing migration file.** Every database change goes in a **new** file (stage 4 = `20261026000100_<name>.sql` or the date you build it, sorting after file 6): `alter table`, `create or replace function`, `drop function` + `create` when arguments or return columns change, and moving existing rows.
+- **Stage 3b** (player cards and self-ratings, Self vs friends, the portfolio profile with rating history, Motion animation, rating settings in the app, change history; migration file 7, `20261025000300_player_card.sql`) built on 2026-10-25; see `Plans/implementation/stage-3b-player-card.md`.
+- **174 tests** pass (`npm test`); `npx tsc -b`, `npm run lint` (0 warnings) and `npm run build` are clean.
+- **A real Supabase project exists.** Files 1-5 have been run on it; the owner was asked to run files 6 and 7 before pushing stages 3 and 3b. At the start, ask whether they have (multiple choice).
+- **Never edit an existing migration file.** Every database change goes in a **new** file (stage 4 = `20261026000100_<name>.sql` or the date you build it, sorting after file 7): `alter table`, `create or replace function`, `drop function` + `create` when arguments or return columns change, and moving existing rows.
 - `main` is pushed to GitHub (`YoussefEslam29/7gz-kora`) up to `4f5a994`, which includes stage 2.
 - **Vercel:** project `7gz-kora` (team `team_iW3kj4FDmRd2y0Hz8b2U9cMN`, project `prj_6ro39cfyOF4eqvAFjfl17yu0l4Q5`; the Vercel MCP tools work for deployments and build logs, not for listing env vars). The first production deploy **failed on purpose**: `VITE_ALLOW_BROWSER` was set in the project's environment variables, and `vite.config.ts` refuses to build with it. The owner was told to delete that variable and redeploy, then do README Step 7 (Supabase Site URL and Redirect URLs, Google Authorized JavaScript origins), Step 6e (Google Branding with the privacy link, then Publish) and the real-phone sign-in test (README section 3). At the start, check the latest deployment's state with the Vercel MCP and tell the owner in one line whether it's live; if it failed again, show them the error from the build log in plain words.
 
@@ -43,6 +44,8 @@ Then the code: `supabase/migrations/*.sql` (5 files), `supabase/seed.sql`, `test
 - Team strength for the suggester comes from ratings already stored (season rating, then all-time, then **6.0**): don't add a second rating calculation.
 - **Money stays exactly as it is.** No fines, deposits, extra costs, hourly prices or debt history (and punishments never cost money).
 - Admins only start/end games, change teams, check people in and log goals.
+- **Animation:** use only `m` components (`motion/react-m`) inside the app's `LazyMotion strict`, animate `transform`/`opacity`, and respect reduce motion (`src/components/motion.tsx`). Confirmations use `useConfirm()`, never `window.confirm`; success messages use `useToast()`.
+- **The self-rating never changes a night rating.** It's only a new player's starting strength in the suggester (kept 4.5-7.5) and the Self vs friends meter.
 
 ## 5. How to work: stages 3, 4, 5 from `Plans/README.md`, one at a time
 

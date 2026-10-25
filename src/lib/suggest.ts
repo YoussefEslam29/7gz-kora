@@ -1,14 +1,29 @@
 // The team suggester (Plans/Football-scenario.md section 5): fair teams from
-// the ratings already stored. Pure functions (tested in suggest.test.ts).
+// the ratings already stored (and, for someone new, their self-rating). Pure
+// functions (tested in suggest.test.ts).
 import { TEAMS } from './games'
 import type { Team } from './types'
 
-/** The strength of a player with no rating yet. */
+/** The strength of a player with no rating and no self-rating yet. */
 export const NEW_PLAYER_STRENGTH = 6
+/** A new player's self-rating is kept between these (Plans/Player-card-and-motion.md section 2). */
+export const NEW_PLAYER_MIN = 4.5
+export const NEW_PLAYER_MAX = 7.5
 
-/** A player's strength: their season rating, then their all-time rating, then 6.0 for someone new. */
-export function playerStrength(playerId: string, season: Map<string, number>, allTime: Map<string, number>): number {
-  return season.get(playerId) ?? allTime.get(playerId) ?? NEW_PLAYER_STRENGTH
+/**
+ * A player's strength: their season rating, then their all-time rating, then
+ * (for someone new) their self-rating kept between 4.5 and 7.5, then 6.0.
+ */
+export function playerStrength(
+  playerId: string,
+  season: Map<string, number>,
+  allTime: Map<string, number>,
+  selfRatings: Map<string, number> = new Map(),
+): number {
+  const rated = season.get(playerId) ?? allTime.get(playerId)
+  if (rated !== undefined) return rated
+  const self = selfRatings.get(playerId)
+  return self === undefined ? NEW_PLAYER_STRENGTH : Math.min(NEW_PLAYER_MAX, Math.max(NEW_PLAYER_MIN, self))
 }
 
 /**

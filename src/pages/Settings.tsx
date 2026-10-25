@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { useConfirm, type Question } from '../components/feedback'
+import { RatingSettingsCard } from '../components/ratingsettings'
 import { ChevronIcon } from '../components/icons'
 import { Avatar, Button, Card, ErrorNote, Heading, LinkButton, Name, PageTitle } from '../components/ui'
+import { Cascade } from '../components/motion'
 import * as api from '../lib/api'
 import { errorMessage } from '../lib/format'
 import type { Member } from '../lib/types'
@@ -13,13 +16,15 @@ const EXTRA_TEAM_SIZES = [2, 3, 4, 5, 6, 7]
 
 export default function Settings() {
   const { user, signOut } = useAuth()
-  const { group, isAdmin, members, player, memberships, switchGroup, config, refresh } = useCurrentGroup()
+  const { group, isAdmin, members, player, memberships, switchGroup, refresh } = useCurrentGroup()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
-  async function act(name: string, action: () => Promise<unknown>, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return
+  const confirm = useConfirm()
+
+  async function act(name: string, action: () => Promise<unknown>, question?: Question) {
+    if (question && !(await confirm(question))) return
     setBusy(name)
     setError(null)
     try {
@@ -39,7 +44,7 @@ export default function Settings() {
   )
 
   return (
-    <div className="space-y-4">
+    <Cascade className="space-y-4">
       <PageTitle>More</PageTitle>
       <ErrorNote message={error} />
 
@@ -56,27 +61,15 @@ export default function Settings() {
         </ul>
       </Card>
 
-      <Card>
-        <Heading className="mb-2">Rating settings</Heading>
-        {config && (
-          <dl className="grid grid-cols-2 gap-y-1 text-sm">
-            <dt className="text-muted">Stats / peer votes</dt>
-            <dd className="text-right font-semibold">
-              {Math.round(config.w_analytics * 100)}% / {Math.round(config.w_votes * 100)}%
-            </dd>
-            <dt className="text-muted">Votes needed to count</dt>
-            <dd className="text-right font-semibold">{config.min_votes}</dd>
-            <dt className="text-muted">Nights to join the table</dt>
-            <dd className="text-right font-semibold">{config.min_matches_for_leaderboard}</dd>
-            <dt className="text-muted">Voting window</dt>
-            <dd className="text-right font-semibold">{config.voting_hours} hours</dd>
-          </dl>
-        )}
-        <Link to="/how-it-works" className="mt-3 flex items-center justify-between font-semibold text-brand-ink">
-          How ratings are calculated <ChevronIcon size={18} />
+      <RatingSettingsCard />
+      {isAdmin && (
+        <Link
+          to="/settings/history"
+          className="flex min-h-14 items-center justify-between rounded-card border-[1.5px] border-line bg-paper px-4 font-semibold"
+        >
+          Change history <ChevronIcon size={18} />
         </Link>
-      </Card>
-
+      )}
       <TeamSuggesterCard />
 
       <Card>
@@ -116,14 +109,23 @@ export default function Settings() {
                 await api.removeMember(group.id, user!.id)
                 navigate('/')
               },
-              `Leave ${group.name}? Your stats stay in the group. You can rejoin with the invite code.`,
+              {
+                title: 'Leave this group?',
+                message: (
+                  <>
+                    Your stats stay in <Name>{group.name}</Name>. You can rejoin with the invite code.
+                  </>
+                ),
+                confirmLabel: 'Leave group',
+                danger: true,
+              },
             )
           }
         >
           Leave this group
         </Button>
       </div>
-    </div>
+    </Cascade>
   )
 }
 
@@ -132,6 +134,7 @@ function InviteCard() {
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const confirm = useConfirm()
   const code = group.invite_code
   const link = code ? `${window.location.origin}/join?code=${code}` : ''
 
@@ -149,8 +152,8 @@ function InviteCard() {
     }
   }
 
-  async function run(action: () => Promise<unknown>, confirmText: string) {
-    if (!window.confirm(confirmText)) return
+  async function run(action: () => Promise<unknown>, question: Question) {
+    if (!(await confirm(question))) return
     setBusy(true)
     setError(null)
     try {
@@ -201,7 +204,9 @@ function InviteCard() {
             onClick={() =>
               run(
                 () => api.regenerateInviteCode(group.id),
-                code ? 'Make a new code? The old one stops working.' : 'Turn invites on with a new code?',
+                code
+                  ? { title: 'Make a new code?', message: 'The old one stops working.', confirmLabel: 'New code' }
+                  : { title: 'Turn invites on?', message: 'You get a new code to share.', confirmLabel: 'Turn on' },
               )
             }
           >
@@ -213,7 +218,14 @@ function InviteCard() {
               variant="danger"
               className="flex-1"
               disabled={busy}
-              onClick={() => run(() => api.disableInviteCode(group.id), 'Turn off invites? The code stops working.')}
+              onClick={() =>
+                run(() => api.disableInviteCode(group.id), {
+                  title: 'Turn off invites?',
+                  message: 'The code stops working. Nobody new can join.',
+                  confirmLabel: 'Turn off',
+                  danger: true,
+                })
+              }
             >
               Turn off invites
             </Button>
@@ -274,7 +286,7 @@ function MemberRow({
 }: {
   member: Member
   busy: string | null
-  act: (name: string, action: () => Promise<unknown>, confirmText?: string) => Promise<void>
+  act: (name: string, action: () => Promise<unknown>, question?: Question) => Promise<void>
 }) {
   const { group, isAdmin, player } = useCurrentGroup()
   const { user } = useAuth()
@@ -316,7 +328,16 @@ function MemberRow({
               act(
                 `remove-${member.user_id}`,
                 () => api.removeMember(group.id, member.user_id),
-                `Remove ${name} from the group? Their stats stay.`,
+                {
+                  title: 'Remove this member?',
+                  message: (
+                    <>
+                      <Name>{name}</Name> leaves the group. Their stats stay.
+                    </>
+                  ),
+                  confirmLabel: 'Remove',
+                  danger: true,
+                },
               )
             }
           >

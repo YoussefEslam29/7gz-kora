@@ -22,7 +22,29 @@ export interface Membership {
   player_id: string
 }
 
-export interface Player {
+/** Strong foot, on the player card. */
+export type Foot = 'right' | 'left' | 'both'
+/** Favourite position, on the player card: for show only (teams have no fixed positions). */
+export type Position = 'goal' | 'defence' | 'midfield' | 'attack' | 'anywhere'
+
+/** The self-rating: 1-10 on each skill, all five or none (players_skills_all_or_none). */
+export interface Skills {
+  skill_shooting: number | null
+  skill_passing: number | null
+  skill_dribbling: number | null
+  skill_defending: number | null
+  skill_fitness: number | null
+}
+
+/** The player card (Plans/Player-card-and-motion.md section 1). Every field is optional. */
+export interface CardFields extends Skills {
+  shirt_number: number | null
+  strong_foot: Foot | null
+  favourite_position: Position | null
+  motto: string | null
+}
+
+export interface Player extends CardFields {
   id: string
   group_id: string
   user_id: string | null
@@ -72,6 +94,9 @@ export interface RatingConfig {
   voting_hours: number
   points: Partial<RatingPoints>
 }
+
+/** The rating settings admins change in the app. The point values stay in Supabase's table editor. */
+export type RatingSettings = Pick<RatingConfig, 'w_analytics' | 'w_votes' | 'min_votes' | 'min_matches_for_leaderboard' | 'voting_hours'>
 
 export interface Match {
   id: string
@@ -331,4 +356,14 @@ export interface BoardEntry {
   player_id: string
   /** null = on the bench. */
   team: Team | null
+}
+
+/** One line of the group's change history (audit_log). */
+export interface AuditEntry {
+  id: string
+  /** The account that did it; null when it was the app itself. */
+  actor_id: string | null
+  action: string
+  details: Record<string, unknown>
+  created_at: string
 }

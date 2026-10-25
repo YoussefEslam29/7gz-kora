@@ -1,10 +1,13 @@
 // Small building blocks used on every screen. The look follows
 // Design/README.md; the CSS classes (btn, chip, label...) live in index.css.
+import * as m from 'motion/react-m'
 import { useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { initials, ratingTone } from '../lib/format'
+import { cascadeItem, spring } from '../lib/motion'
 import { shareText } from '../lib/share'
 import type { MatchStatus, Team } from '../lib/types'
+import { CountUp } from './motion'
 
 type Variant = 'primary' | 'secondary' | 'black' | 'dark' | 'danger' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
@@ -56,14 +59,18 @@ export function LinkButton({
   )
 }
 
-/** White card. `strong` gives important cards (money, live night) a bold ink border. */
+/**
+ * White card. `strong` gives important cards (money, live night) a bold ink
+ * border. Inside a <Cascade> the cards slide in one after another.
+ */
 export function Card({ children, className = '', strong = false }: { children: ReactNode; className?: string; strong?: boolean }) {
   return (
-    <section
+    <m.section
+      variants={cascadeItem}
       className={`rounded-card bg-paper p-4 ${strong ? 'border-2 border-ink' : 'border-[1.5px] border-line'} ${className}`}
     >
       {children}
-    </section>
+    </m.section>
   )
 }
 
@@ -91,10 +98,13 @@ export function Spinner({ small = false }: { small?: boolean }) {
   )
 }
 
+/** Shimmering placeholders shaped like a screen's cards, while it loads. */
 export function Loading() {
   return (
-    <div className="flex justify-center py-16 text-brand-ink">
-      <Spinner />
+    <div role="status" aria-label="Loading" className="space-y-4">
+      <div className="skeleton h-24 rounded-card" />
+      <div className="skeleton h-40 rounded-card" />
+      <div className="skeleton h-28 rounded-card" />
     </div>
   )
 }
@@ -129,7 +139,18 @@ export function Name({ children, className = '' }: { children: ReactNode; classN
   )
 }
 
-export function RatingBadge({ value, size = 'md' }: { value: number | null | undefined; size?: 'sm' | 'md' | 'lg' }) {
+export function RatingBadge({
+  value,
+  size = 'md',
+  className = '',
+  animated = false,
+}: {
+  value: number | null | undefined
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+  /** Counts up from 0 when it first shows. */
+  animated?: boolean
+}) {
   const sizes = {
     sm: 'h-6 min-w-9 text-base rounded-md',
     md: 'h-8 min-w-[46px] text-xl rounded-[10px]',
@@ -137,9 +158,9 @@ export function RatingBadge({ value, size = 'md' }: { value: number | null | und
   }
   return (
     <span
-      className={`tabular inline-flex items-center justify-center px-1.5 font-display ${sizes[size]} ${ratingTone(value)}`}
+      className={`tabular inline-flex items-center justify-center px-1.5 font-display ${sizes[size]} ${ratingTone(value)} ${className}`}
     >
-      {value == null ? '–' : Number(value).toFixed(1)}
+      {value == null ? '–' : animated ? <CountUp value={Number(value)} decimals={1} /> : Number(value).toFixed(1)}
     </span>
   )
 }
@@ -183,7 +204,14 @@ export function StatusChip({ status }: { status: MatchStatus }) {
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="rounded-card border-[1.5px] border-dashed border-line p-6 text-center">
-      <img src="/mark-green.svg" alt="" className="mx-auto mb-2 h-24" />
+      <m.img
+        src="/mark-green.svg"
+        alt=""
+        className="mx-auto mb-2 h-24"
+        initial={{ y: -10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: 'spring', bounce: 0.5, duration: 0.6 }}
+      />
       <p className="font-display text-lg">{title}</p>
       {children && <div className="mt-2 text-sm text-muted">{children}</div>}
     </div>
@@ -214,5 +242,61 @@ export function ShareButton({ text, className = '' }: { text: string; className?
         </p>
       )}
     </div>
+  )
+}
+
+/** An on/off switch row, like "Happy to play in goal". The knob springs across. */
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  hint,
+  icon,
+}: {
+  checked: boolean
+  onChange: (on: boolean) => void
+  label: string
+  hint?: string
+  icon?: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex min-h-14 w-full items-center gap-3 rounded-card border-[1.5px] border-line bg-paper px-4 py-2 text-left"
+    >
+      {icon}
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{label}</span>
+        {hint && <span className="block text-xs text-muted">{hint}</span>}
+      </span>
+      <span
+        aria-hidden
+        className={`flex h-7 w-12 shrink-0 rounded-full border-2 border-ink p-0.5 ${checked ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+      >
+        <m.span layout transition={spring} className={`block size-5 rounded-full ${checked ? 'bg-[#0b0b0b]' : 'bg-ink'}`} />
+      </span>
+    </button>
+  )
+}
+
+/** One number of a 1-10 tap row (votes, skills): green with black text when chosen, and it pops. */
+export function ScoreButton({ n, selected, onClick }: { n: number; selected: boolean; onClick: () => void }) {
+  return (
+    <m.button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      whileTap={{ scale: 0.9 }}
+      animate={{ scale: selected ? [1, 1.15, 1] : 1 }}
+      transition={{ duration: 0.25 }}
+      className={`tabular h-[42px] rounded-[10px] border-[1.5px] font-display text-xl ${
+        selected ? 'border-[#0b0b0b] bg-brand text-on-brand' : 'border-transparent bg-ground text-ink'
+      }`}
+    >
+      {n}
+    </m.button>
   )
 }

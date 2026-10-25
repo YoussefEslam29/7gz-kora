@@ -3,10 +3,13 @@ import { Link } from 'react-router'
 import { PlusIcon, StarIcon } from '../components/icons'
 import { Scoreboard } from '../components/match'
 import { RsvpCard } from '../components/rsvp'
-import { Card, Empty, ErrorNote, Heading, LinkButton, Loading, Name, RatingBadge, StatusChip } from '../components/ui'
+import { Button, Card, Empty, ErrorNote, Heading, LinkButton, Loading, Name, RatingBadge, StatusChip } from '../components/ui'
+import { Cascade } from '../components/motion'
 import * as api from '../lib/api'
+import { isCardFilled } from '../lib/card'
 import { formatDay, timeLeft } from '../lib/format'
 import { gameScore } from '../lib/games'
+import { KEYS, readLocal, writeLocal } from '../lib/storage'
 import type { MatchSummary, MoneyOwed } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
@@ -40,7 +43,7 @@ export default function Home() {
   const mine = last?.match_ratings.find((r) => r.player_id === myPlayerId)
 
   return (
-    <div className="space-y-4">
+    <Cascade className="space-y-4">
       <ErrorNote message={error} onRetry={reload} />
 
       {live.map((m) => (
@@ -58,6 +61,7 @@ export default function Home() {
           voted={voted.has(m.id)}
         />
       ))}
+      <FinishCard />
 
       {isAdmin && !next && live.length === 0 && (
         <LinkButton to="/nights/new" className="w-full">
@@ -133,7 +137,7 @@ export default function Home() {
           How do nights, money and ratings work?
         </Link>
       </p>
-    </div>
+    </Cascade>
   )
 }
 
@@ -220,6 +224,36 @@ function VotingNow({ night, played, voted }: { night: MatchSummary; played: bool
         <LinkButton to={`/nights/${night.id}`} variant="secondary" className="flex-1">
           Open night
         </LinkButton>
+      </div>
+    </Card>
+  )
+}
+
+/** Until the player card is filled in: a nudge to do it. "Not now" hides it on this phone. */
+function FinishCard() {
+  const { player, myPlayerId } = useCurrentGroup()
+  const key = `${KEYS.cardReminderHidden}.${myPlayerId}`
+  const [hidden, setHidden] = useState(() => readLocal(key) === '1')
+  const me = player(myPlayerId)
+  if (!me || hidden || isCardFilled(me)) return null
+  return (
+    <Card strong>
+      <Heading>Your player card</Heading>
+      <p className="mt-1 font-display text-[22px] leading-tight">Finish your player card</p>
+      <p className="mt-1 text-sm text-muted">Your shirt number, strong foot, favourite position, and how you rate yourself.</p>
+      <div className="mt-3 flex gap-2">
+        <LinkButton to={`/players/${myPlayerId}/edit`} className="flex-1">
+          Set up my card
+        </LinkButton>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            writeLocal(key, '1')
+            setHidden(true)
+          }}
+        >
+          Not now
+        </Button>
       </div>
     </Card>
   )

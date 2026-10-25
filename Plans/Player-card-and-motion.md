@@ -112,7 +112,7 @@ It's shown as two bars on the same scale ("Says 7.6 · Friends give 6.4"), with 
 
 1. **Player card** (section 1), with **Edit my card** for the player or an admin
 2. **Self vs friends** (section 2)
-3. **Rating history:** a line graph of every rated night, oldest on the left, **Season / All-time** tabs. Dots are coloured by the rating bands (`Design/README.md` section 3) and always labelled with the number when tapped (never colour alone). The x-axis is the nights in order, not dates. One night shows a single dot. None shows the empty state. Drawn by hand in SVG: **no chart library**.
+3. **Rating history:** a line graph of every rated night, oldest on the left, **Season / All-time** tabs. Faint lines mark the rating bands at 6, 7 and 8 (`Design/README.md` section 3). Tapping or sliding across the graph picks a night and shows its date and its rating badge (in the band colour, with the number); the latest night is picked at first. The dots stay in the line's colour, because the grey "under 6" band would be too faint as a dot on a white card. The x-axis is the nights in order, not dates. One night shows a single dot. None shows the empty state. Drawn by hand in SVG: **no chart library**. The night list below is the table view of the same numbers.
 4. **Form:** the last 5 nights as rating badges (oldest to newest), their average, and an arrow against the average of the (up to 5) nights before them: **up** if at least 0.2 higher, **down** if at least 0.2 lower, otherwise level. No arrow with fewer than 6 nights, because there's nothing before to compare with.
 5. **Highlights:** best night (rating and date, links to the night) and Man of the Match count
 6. **Stats:** the Season and All-time cards as today

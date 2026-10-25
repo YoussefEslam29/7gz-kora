@@ -1,8 +1,10 @@
+import * as m from 'motion/react-m'
 import { Link } from 'react-router'
 import { ChevronIcon, PlusIcon, StarIcon } from '../components/icons'
 import { Empty, ErrorNote, LinkButton, Loading, Name, PageTitle, RatingBadge, StatusChip } from '../components/ui'
 import * as api from '../lib/api'
 import { CANCEL_REASONS, clockOf, formatDay, parseDay } from '../lib/format'
+import { cascade, cascadeItem } from '../lib/motion'
 import type { MatchSummary } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
@@ -15,9 +17,9 @@ export default function Nights() {
 
   // Grouped by month: "October 2026"
   const months = new Map<string, MatchSummary[]>()
-  for (const m of data ?? []) {
-    const key = parseDay(m.played_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    months.set(key, [...(months.get(key) ?? []), m])
+  for (const night of data ?? []) {
+    const key = parseDay(night.played_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    months.set(key, [...(months.get(key) ?? []), night])
   }
 
   return (
@@ -37,32 +39,37 @@ export default function Nights() {
       {[...months.entries()].map(([month, list]) => (
         <section key={month} className="mb-5">
           <h2 className="label mb-2">{month}</h2>
-          <ul className="divide-y-[1.5px] divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
-            {list.map((m) => {
-              const showGames = m.status === 'playing' || m.status === 'voting' || m.status === 'closed'
-              const mine = m.match_ratings.find((r) => r.player_id === myPlayerId)
+          <m.ul
+            initial="initial"
+            animate="animate"
+            variants={cascade}
+            className="divide-y-[1.5px] divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper"
+          >
+            {list.map((night) => {
+              const showGames = night.status === 'playing' || night.status === 'voting' || night.status === 'closed'
+              const mine = night.match_ratings.find((r) => r.player_id === myPlayerId)
               return (
-                <li key={m.id}>
-                  <Link to={`/nights/${m.id}`} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                <m.li key={night.id} variants={cascadeItem}>
+                  <Link to={`/nights/${night.id}`} className="flex min-h-16 items-center gap-3 px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-bold">
-                        {formatDay(m.played_at)}
-                        {m.starts_at && ` · ${clockOf(m.starts_at)}`}
+                        {formatDay(night.played_at)}
+                        {night.starts_at && ` · ${clockOf(night.starts_at)}`}
                       </p>
                       <p className="flex items-center gap-2 text-sm text-muted">
-                        <StatusChip status={m.status} />
+                        <StatusChip status={night.status} />
                         <span className="truncate">
-                          {m.status === 'cancelled' && m.cancel_reason ? (
-                            CANCEL_REASONS[m.cancel_reason]
+                          {night.status === 'cancelled' && night.cancel_reason ? (
+                            CANCEL_REASONS[night.cancel_reason]
                           ) : (
-                            <Name>{m.location ?? ''}</Name>
+                            <Name>{night.location ?? ''}</Name>
                           )}
                         </span>
                       </p>
                     </div>
                     {showGames && (
                       <span className="text-sm whitespace-nowrap text-muted">
-                        {m.games.length} game{m.games.length === 1 ? '' : 's'}
+                        {night.games.length} game{night.games.length === 1 ? '' : 's'}
                       </span>
                     )}
                     {mine && (
@@ -73,10 +80,10 @@ export default function Nights() {
                     )}
                     <ChevronIcon size={18} className="shrink-0 text-muted" />
                   </Link>
-                </li>
+                </m.li>
               )
             })}
-          </ul>
+          </m.ul>
         </section>
       ))}
     </div>

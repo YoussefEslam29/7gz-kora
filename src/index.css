@@ -122,6 +122,18 @@ body {
   transform: scale(0.97);
 }
 
+/* Loading placeholders: a soft shine sweeping across. */
+.skeleton {
+  background: linear-gradient(100deg, var(--line) 30%, var(--paper) 50%, var(--line) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
 @layer components {
   /* Buttons. Primary (green, black text, sticker shadow): one per screen area. */
   .btn {
@@ -241,6 +253,9 @@ body {
     transform: none;
   }
   .status.playing::before {
+    animation: none;
+  }
+  .skeleton {
     animation: none;
   }
 }

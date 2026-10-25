@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  NEW_PLAYER_MAX,
+  NEW_PLAYER_MIN,
   NEW_PLAYER_STRENGTH,
   playerStrength,
   suggestTeams,
@@ -119,6 +121,22 @@ describe('strength', () => {
     expect(playerStrength('Ziad', season, allTime)).toBe(6.2)
     expect(playerStrength('محمد', season, allTime)).toBe(NEW_PLAYER_STRENGTH)
     expect(NEW_PLAYER_STRENGTH).toBe(6)
+  })
+
+  it('someone new starts at their self-rating, kept between 4.5 and 7.5 (Plans/Player-card-and-motion.md)', () => {
+    const none = new Map<string, number>()
+    const self = new Map([['New A', 9.2], ['New B', 3], ['New C', 6.8], ['Rated', 9]])
+    expect(playerStrength('New A', none, none, self)).toBe(7.5)
+    expect(playerStrength('New B', none, none, self)).toBe(4.5)
+    expect(playerStrength('New C', none, none, self)).toBe(6.8)
+    expect(playerStrength('New D', none, none, self)).toBe(NEW_PLAYER_STRENGTH)
+    expect([NEW_PLAYER_MIN, NEW_PLAYER_MAX]).toEqual([4.5, 7.5])
+  })
+
+  it('a real rating always wins over the self-rating', () => {
+    const self = new Map([['Rated', 9]])
+    expect(playerStrength('Rated', new Map([['Rated', 7.1]]), new Map(), self)).toBe(7.1)
+    expect(playerStrength('Rated', new Map(), new Map([['Rated', 6.3]]), self)).toBe(6.3)
   })
 
   it("each team's average on the board; an empty team has none", () => {

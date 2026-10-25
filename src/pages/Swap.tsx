@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { useConfirm, useToast } from '../components/feedback'
 import { BackIcon, GloveIcon } from '../components/icons'
 import { Avatar, Button, ErrorNote, Loading, Name, Notice, PageTitle, TeamTag } from '../components/ui'
 import * as api from '../lib/api'
@@ -28,6 +29,8 @@ export default function Swap() {
   const [busy, setBusy] = useState<'continue' | 'end' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const now = useNow(60_000)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     api
@@ -101,13 +104,19 @@ export default function Swap() {
   }
 
   async function save(cont: boolean) {
-    if (!cont && !window.confirm('End this game now and start the next one, 0 – 0, with these teams?')) return
+    const ask = {
+      title: 'End game and swap?',
+      message: 'This game ends now and the next one starts at 0 – 0 with these teams.',
+      confirmLabel: 'End and swap',
+    }
+    if (!cont && !(await confirm(ask))) return
     setBusy(cont ? 'continue' : 'end')
     setError(null)
     const lineup: LineupEntry[] = []
     for (const [player_id, p] of picks) if (p.team) lineup.push({ player_id, team: p.team, is_goalkeeper: p.gk })
     try {
       await api.swapPlayers(id, lineup, cont)
+      toast(cont ? 'Swapped. The game goes on.' : 'Next game started')
       navigate(`/nights/${id}`)
     } catch (e) {
       setError(errorMessage(e))

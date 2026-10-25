@@ -1,11 +1,16 @@
 // After the night: voting, then the final ratings with their breakdown.
+import * as m from 'motion/react-m'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import * as api from '../lib/api'
-import { errorMessage, formatMinutes, formatPoints, isPast, timeLeft } from '../lib/format'
+import { errorMessage, isPast, timeLeft } from '../lib/format'
+import { cascade, cascadeItem } from '../lib/motion'
 import type { Match, MatchDetail, MatchRating } from '../lib/types'
 import { useCurrentGroup } from '../state/group'
+import { BreakdownTable } from './breakdown'
+import { useConfirm, useToast, type Question } from './feedback'
 import { ChevronIcon, StarIcon } from './icons'
+import { Reveal } from './motion'
 import { Button, Card, ErrorNote, Heading, LinkButton, Name, RatingBadge } from './ui'
 
 type VoteStatus = { player_id: string; has_voted: boolean }
@@ -25,14 +30,17 @@ export function VotingCard({
   const { myPlayerId, isAdmin } = useCurrentGroup()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
   const iVoted = voteStatus.some((v) => v.player_id === myPlayerId && v.has_voted)
 
-  async function act(name: string, action: () => Promise<unknown>, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return
+  async function act(name: string, action: () => Promise<unknown>, done: string, question?: Question) {
+    if (question && !(await confirm(question))) return
     setBusy(name)
     setError(null)
     try {
       await action()
+      toast(done)
       onChange()
     } catch (e) {
       setError(errorMessage(e))
@@ -56,7 +64,7 @@ export function VotingCard({
       )}
       {isAdmin && (
         <div className="mt-2 flex gap-2">
-          <Button variant="secondary" className="flex-1" busy={busy === 'extend'} onClick={() => void act('extend', () => api.extendVoting(match.id, 12))}>
+          <Button variant="secondary" className="flex-1" busy={busy === 'extend'} onClick={() => void act('extend', () => api.extendVoting(match.id, 12), 'Voting extended by 12 hours')}>
             +12 hours
           </Button>
           <Button
@@ -64,7 +72,11 @@ export function VotingCard({
             className="flex-1"
             busy={busy === 'close'}
             onClick={() =>
-              void act('close', () => api.closeVoting(match.id), 'Close voting now? Ratings become final and votes are revealed.')
+              void act('close', () => api.closeVoting(match.id), 'Voting closed', {
+                title: 'Close voting now?',
+                message: 'Ratings become final and everyone sees the votes.',
+                confirmLabel: 'Close voting',
+              })
             }
           >
             Close now
@@ -87,7 +99,12 @@ function VoteProgress({ voteStatus }: { voteStatus: VoteStatus[] }) {
   return (
     <div className="mt-2">
       <div className="h-2 overflow-hidden rounded-full bg-line" aria-hidden>
-        <div className="h-full rounded-full bg-brand" style={{ width: `${(done / Math.max(1, voteStatus.length)) * 100}%` }} />
+        <m.div
+          className="h-full rounded-full bg-brand"
+          initial={{ width: 0 }}
+          animate={{ width: `${(done / Math.max(1, voteStatus.length)) * 100}%` }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        />
       </div>
       <p className="mt-1 text-sm text-muted">
         {done} of {voteStatus.length} voted
@@ -116,19 +133,34 @@ export function Results({ detail }: { detail: MatchDetail }) {
 
   return (
     <>
-      <section className="rounded-card border-2 border-gold bg-paper p-4">
-        <div className="flex items-center gap-3">
-          <StarIcon size={36} className="shrink-0 text-gold" />
+      <section className="relative overflow-hidden rounded-card border-2 border-gold bg-paper p-4">
+        {/* A gold shine sweeps across once. */}
+        <m.span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-linear-to-r from-transparent via-gold/30 to-transparent"
+          initial={{ x: '0%' }}
+          animate={{ x: '400%' }}
+          transition={{ duration: 1.1, delay: 0.4, ease: 'easeInOut' }}
+        />
+        <div className="relative flex items-center gap-3">
+          <m.span
+            className="shrink-0 text-gold"
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.15 }}
+          >
+            <StarIcon size={36} />
+          </m.span>
           <div className="min-w-0">
             <Heading>Man of the Match</Heading>
             {mvps.length === 0 ? (
               <p className="text-muted">No votes</p>
             ) : (
               <p className="font-display text-2xl">
-                {mvps.map((m, i) => (
-                  <span key={m.player_id}>
+                {mvps.map((mvp, i) => (
+                  <span key={mvp.player_id}>
                     {i > 0 && ' & '}
-                    <Name>{playerName(m.player_id)}</Name>
+                    <Name>{playerName(mvp.player_id)}</Name>
                   </span>
                 ))}
                 <span className="ml-2 font-sans text-base font-semibold text-muted">
@@ -145,9 +177,9 @@ export function Results({ detail }: { detail: MatchDetail }) {
           <Heading>Ratings</Heading>
           <span className="text-xs text-muted">Tap a player for the breakdown</span>
         </div>
-        <ul className="mt-2 divide-y divide-line">
+        <m.ul className="mt-2 divide-y divide-line" initial="initial" animate="animate" variants={cascade}>
           {ranked.map((r, i) => (
-            <li key={r.player_id}>
+            <m.li key={r.player_id} variants={cascadeItem}>
               <button
                 type="button"
                 aria-expanded={open === r.player_id}
@@ -171,13 +203,15 @@ export function Results({ detail }: { detail: MatchDetail }) {
                       .join(' · ')}
                   </span>
                 </span>
-                <RatingBadge value={r.rating} />
+                <RatingBadge value={r.rating} animated />
                 <ChevronIcon size={18} className={`shrink-0 text-muted transition-transform ${open === r.player_id ? 'rotate-90' : ''}`} />
               </button>
-              {open === r.player_id && <Breakdown rating={r} detail={detail} />}
-            </li>
+              <Reveal open={open === r.player_id}>
+                <Breakdown rating={r} detail={detail} />
+              </Reveal>
+            </m.li>
           ))}
-        </ul>
+        </m.ul>
       </Card>
     </>
   )
@@ -185,56 +219,12 @@ export function Results({ detail }: { detail: MatchDetail }) {
 
 function Breakdown({ rating, detail }: { rating: MatchRating; detail: MatchDetail }) {
   const { playerName } = useCurrentGroup()
-  const b = rating.breakdown
   const received = detail.votes.filter((v) => v.target_id === rating.player_id)
   const mvpFrom = detail.mvpVotes.filter((v) => v.target_id === rating.player_id)
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-
-  const rows: [string, number][] = [
-    ['Base for playing', b.base],
-    [`Goals (${rating.goals})`, b.goals],
-    [`Assists (${rating.assists})`, b.assists],
-    [`Team impact (goal difference on the pitch, added up: ${formatPoints(b.net_goal_diff)})`, b.net_goals],
-    [b.minutes != null ? `Result (average over ${formatMinutes(b.minutes)} played)` : 'Result', b.result],
-  ]
-  if (b.clean_sheets) rows.push([`Clean sheets (${rating.clean_sheets})`, b.clean_sheets])
-  if (b.saves) rows.push([`Saves (${rating.saves})`, b.saves])
 
   return (
     <div className="space-y-3 bg-ground/60 px-4 py-3 text-sm">
-      <table className="tabular w-full">
-        <tbody>
-          {rows.map(([label, value]) => (
-            <tr key={label}>
-              <td className="py-0.5 text-muted">{label}</td>
-              <td className="py-0.5 text-right font-medium">{label.startsWith('Base') ? value.toFixed(1) : formatPoints(value)}</td>
-            </tr>
-          ))}
-          <tr className="border-t border-line font-semibold">
-            <td className="pt-1">Stats score</td>
-            <td className="pt-1 text-right">{b.analytics}</td>
-          </tr>
-          <tr className="font-semibold">
-            <td>Peer votes</td>
-            <td className="text-right">
-              {b.vote_average != null ? `${b.vote_average} avg of ${plural(b.vote_count, 'vote')}` : 'no votes'}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p className="rounded-lg bg-paper p-2 font-medium">
-        {b.stats_only ? (
-          <>
-            Fewer than {b.min_votes} votes, so the rating is the stats score alone: <strong>{rating.rating.toFixed(1)}</strong>
-          </>
-        ) : (
-          <>
-            {Math.round(b.w_analytics * 100)}% × {b.analytics} + {Math.round(b.w_votes * 100)}% × {b.vote_average} ={' '}
-            <strong>{rating.rating.toFixed(1)}</strong>
-          </>
-        )}
-      </p>
+      <BreakdownTable rating={rating} />
 
       <div>
         <p className="font-semibold">Votes received</p>

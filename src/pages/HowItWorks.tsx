@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { Card, Heading, PageTitle } from '../components/ui'
+import { Cascade } from '../components/motion'
 import { formatPoints } from '../lib/format'
 import type { RatingConfig } from '../lib/types'
 import { useGroup } from '../state/group'
@@ -8,11 +9,12 @@ import { useGroup } from '../state/group'
 export default function HowItWorks() {
   const { config, group } = useGroup()
   return (
-    <div className="space-y-4">
+    <Cascade className="space-y-4">
       <PageTitle sub="Nights, games, money and ratings, in plain words.">How it works</PageTitle>
       <NightsExplainer extraTeam={group?.min_extra_team_size ?? 3} />
       {config && <RatingExplainer config={config} />}
-    </div>
+      <CardExplainer />
+    </Cascade>
   )
 }
 
@@ -50,10 +52,10 @@ function NightsExplainer({ extraTeam }: { extraTeam: number }) {
             waiting team comes on. With two, they play again.
           </li>
           <li>
-            <strong>Suggest teams</strong> makes fair teams from everyone's ratings: this season's, then all-time, and
-            6.0 for someone new. With {extraTeam} or more players left over after two full teams, they make a third team;
-            fewer wait on the bench as subs, starting with whoever has played most. An admin can change anything before
-            saving.
+            <strong>Suggest teams</strong> makes fair teams from everyone's ratings: this season's, then all-time.
+            Someone new starts at the self-rating on their player card (kept between 4.5 and 7.5), or 6.0. With{' '}
+            {extraTeam} or more players left over after two full teams, they make a third team; fewer wait on the bench
+            as subs, starting with whoever has played most. An admin can change anything before saving.
           </li>
           <li>
             A draw with a team waiting: <strong>penalties</strong> decide who stays on. For ratings it's still a draw, and
@@ -177,5 +179,31 @@ function RatingExplainer({ config }: { config: RatingConfig }) {
         </p>
       </Card>
     </>
+  )
+}
+
+function CardExplainer() {
+  return (
+    <Card>
+      <Heading className="mb-2">Your player card</Heading>
+      <ul className="list-disc space-y-1 pl-5 text-sm">
+        <li>
+          Fill it in from your profile (<strong>Me → Edit my card</strong>): shirt number, strong foot, favourite position,
+          a motto, and how you rate yourself from 1 to 10 on shooting, passing, dribbling, defending and fitness.
+        </li>
+        <li>
+          Your self-rating is the average of the five. <strong>It never changes your night ratings.</strong>
+        </li>
+        <li>
+          Until you've played a rated night, <strong>Suggest teams</strong> uses your self-rating (kept between 4.5 and
+          7.5) instead of 6.0.
+        </li>
+        <li>
+          <strong>Self vs friends</strong> on your profile puts your self-rating next to the average score your friends
+          give you in their votes: Modest, Spot on, Confident or Very confident. It's just for fun.
+        </li>
+        <li>Your favourite position is for show: teams have no fixed positions.</li>
+      </ul>
+    </Card>
   )
 }

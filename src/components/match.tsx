@@ -7,7 +7,9 @@ import { TEAMS } from '../lib/games'
 import type { Goal, MatchDetail, StintPlayer, Team } from '../lib/types'
 import { useAuth } from '../state/auth'
 import { useGroup } from '../state/group'
+import { useConfirm } from './feedback'
 import { CheckIcon, FlagIcon, GloveIcon } from './icons'
+import { Bump } from './motion'
 import { Button, ErrorNote, Name, TeamTag } from './ui'
 
 /** Bib colours as Tailwind classes (spelled out so Tailwind keeps them). */
@@ -22,7 +24,7 @@ export function Scoreboard({ teams, score }: { teams: [Team, Team]; score: [numb
         <TeamTag team={teams[1]} />
       </div>
       <p className="tabular mt-0.5 text-center font-display text-[64px] leading-none whitespace-nowrap">
-        {score[0]} – {score[1]}
+        <Bump value={score[0]}>{score[0]}</Bump> – <Bump value={score[1]}>{score[1]}</Bump>
       </p>
     </div>
   )
@@ -105,6 +107,7 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
   const [error, setError] = useState<string | null>(null)
   // Admin edit: which goal, and the new scorer once picked.
   const [editing, setEditing] = useState<{ goal: Goal; scorerId?: string } | null>(null)
+  const confirm = useConfirm()
   const { match, goals, games, playerIds, stintPlayers } = detail
   const open = match.status !== 'closed'
   const iPlayed = myPlayerId != null && playerIds.includes(myPlayerId)
@@ -120,6 +123,21 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
     } finally {
       setBusy(null)
     }
+  }
+
+  async function dispute(goalId: string) {
+    const yes = await confirm({
+      title: 'Dispute this goal?',
+      message: "It won't count until an admin fixes it.",
+      confirmLabel: 'Dispute',
+      danger: true,
+    })
+    if (yes) await run(goalId, () => api.disputeGoal(goalId))
+  }
+
+  async function remove(goalId: string) {
+    const yes = await confirm({ title: 'Delete this goal?', message: 'It stops counting.', confirmLabel: 'Delete', danger: true })
+    if (yes) await run(goalId, () => api.deleteGoal(goalId))
   }
 
   if (goals.length === 0) return <p className="text-sm text-muted">No goals yet.</p>
@@ -226,10 +244,7 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
                               size="sm"
                               variant="secondary"
                               disabled={busy === g.id}
-                              onClick={() => {
-                                if (window.confirm('Dispute this goal? It will not count until an admin fixes it.'))
-                                  void run(g.id, () => api.disputeGoal(g.id))
-                              }}
+                              onClick={() => void dispute(g.id)}
                             >
                               <FlagIcon size={16} /> Dispute
                             </Button>
@@ -244,9 +259,7 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
                               size="sm"
                               variant="danger"
                               disabled={busy === g.id}
-                              onClick={() => {
-                                if (window.confirm('Delete this goal?')) void run(g.id, () => api.deleteGoal(g.id))
-                              }}
+                              onClick={() => void remove(g.id)}
                             >
                               Delete
                             </Button>

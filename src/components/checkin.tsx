@@ -1,9 +1,10 @@
 // Check-in at the pitch. Who is checked in is who plays, votes and pays.
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import * as api from '../lib/api'
 import { clockOf, errorMessage } from '../lib/format'
 import type { MatchDetail, RsvpStatus } from '../lib/types'
 import { useCurrentGroup } from '../state/group'
+import { useConfirm, useToast } from './feedback'
 import { Avatar, Button, Card, ErrorNote, Heading, Name } from './ui'
 
 const REPLY_NOTE: Record<RsvpStatus, string> = { in: "Said I'm in", waiting: 'On the waiting list', out: 'Said out' }
@@ -13,6 +14,8 @@ export function CheckInList({ detail, onChange }: { detail: MatchDetail; onChang
   const { players } = useCurrentGroup()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
   const matchId = detail.match.id
   const here = new Map(detail.checkIns.map((c) => [c.player_id, c]))
   const said = new Map(detail.rsvps.map((r) => [r.player_id, r.status]))
@@ -20,17 +23,32 @@ export function CheckInList({ detail, onChange }: { detail: MatchDetail; onChang
   const rank = (id: string) => (here.has(id) ? 0 : said.get(id) === 'in' ? 1 : said.get(id) === 'waiting' ? 2 : 3)
   const sorted = [...players].sort((a, b) => rank(a.id) - rank(b.id) || a.display_name.localeCompare(b.display_name))
 
-  async function run(playerId: string, action: () => Promise<unknown>) {
+  async function run(playerId: string, action: () => Promise<unknown>, done: ReactNode) {
     setBusy(playerId)
     setError(null)
     try {
       await action()
+      toast(done)
       onChange()
     } catch (e) {
       setError(errorMessage(e))
     } finally {
       setBusy(null)
     }
+  }
+
+  async function undo(playerId: string, name: string) {
+    const yes = await confirm({
+      title: 'Undo this check-in?',
+      message: (
+        <>
+          <Name>{name}</Name> comes off tonight's list. Only for a mistake.
+        </>
+      ),
+      confirmLabel: 'Undo check-in',
+      danger: true,
+    })
+    if (yes) await run(playerId, () => api.undoCheckIn(matchId, playerId), 'Check-in undone')
   }
 
   return (
@@ -60,24 +78,35 @@ export function CheckInList({ detail, onChange }: { detail: MatchDetail; onChang
                   size="sm"
                   variant="ghost"
                   disabled={busy === p.id}
-                  onClick={() => {
-                    if (window.confirm(`Undo ${p.display_name}'s check-in? Only for a mistake.`))
-                      void run(p.id, () => api.undoCheckIn(matchId, p.id))
-                  }}
+                  onClick={() => void undo(p.id, p.display_name)}
                 >
                   Undo
                 </Button>
               )}
               {!c ? (
-                <Button size="sm" busy={busy === p.id} onClick={() => void run(p.id, () => api.checkIn(matchId, p.id))}>
+                <Button
+                  size="sm"
+                  busy={busy === p.id}
+                  onClick={() => void run(p.id, () => api.checkIn(matchId, p.id), <><Name>{p.display_name}</Name> checked in</>)}
+                >
                   Check in
                 </Button>
               ) : c.left_at ? (
-                <Button size="sm" variant="secondary" busy={busy === p.id} onClick={() => void run(p.id, () => api.checkIn(matchId, p.id))}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  busy={busy === p.id}
+                  onClick={() => void run(p.id, () => api.checkIn(matchId, p.id), <><Name>{p.display_name}</Name> is back</>)}
+                >
                   Back
                 </Button>
               ) : (
-                <Button size="sm" variant="secondary" busy={busy === p.id} onClick={() => void run(p.id, () => api.checkOut(matchId, p.id))}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  busy={busy === p.id}
+                  onClick={() => void run(p.id, () => api.checkOut(matchId, p.id), <><Name>{p.display_name}</Name> left</>)}
+                >
                   Left
                 </Button>
               )}

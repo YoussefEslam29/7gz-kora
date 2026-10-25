@@ -1,3 +1,4 @@
+import * as m from 'motion/react-m'
 import { useEffect } from 'react'
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router'
 import Layout from './components/Layout'
@@ -7,6 +8,8 @@ import { isStandalone } from './lib/pwa'
 import { KEYS, writeLocal } from './lib/storage'
 import { isConfigured } from './lib/supabase'
 import Home from './pages/Home'
+import ChangeHistory from './pages/ChangeHistory'
+import EditCard from './pages/EditCard'
 import HowItWorks from './pages/HowItWorks'
 import InstallScreen from './pages/InstallScreen'
 import JoinOrCreate from './pages/JoinOrCreate'
@@ -21,6 +24,7 @@ import SignIn from './pages/SignIn'
 import Swap from './pages/Swap'
 import Teams from './pages/Teams'
 import Vote from './pages/Vote'
+import Welcome from './pages/Welcome'
 import { AuthProvider, useAuth } from './state/auth'
 import { GroupProvider, useGroup } from './state/group'
 
@@ -94,9 +98,12 @@ function GroupGate() {
         <Route path="nights/:id/vote" element={<Vote />} />
         <Route path="table" element={<Leaderboard />} />
         <Route path="players/:id" element={<PlayerProfile />} />
+        <Route path="players/:id/edit" element={<EditCard />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="settings/history" element={<ChangeHistory />} />
         <Route path="how-it-works" element={<HowItWorks />} />
         <Route path="join" element={<JoinOrCreate />} />
+        <Route path="welcome" element={<Welcome />} />
         <Route path="*" element={<NotFound onRetry={() => void refresh()} />} />
       </Route>
     </Routes>
@@ -106,7 +113,15 @@ function GroupGate() {
 function Splash() {
   return (
     <div className="honeycomb flex min-h-dvh items-center justify-center">
-      <img src="/logo.svg" alt="Loading 7GZ-KORA" className="h-28 animate-pulse motion-reduce:animate-none" />
+      {/* The logo drops in and bounces like a ball. */}
+      <m.img
+        src="/logo.svg"
+        alt="Loading 7GZ-KORA"
+        className="h-28"
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: 'spring', bounce: 0.6, duration: 0.9 }}
+      />
     </div>
   )
 }

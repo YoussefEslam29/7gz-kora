@@ -27,7 +27,7 @@ export default function JoinOrCreate({ standalone = false }: { standalone?: bool
     writeLocal(KEYS.pendingInvite, null)
     switchGroup(groupId)
     await refresh()
-    navigate('/')
+    navigate('/welcome')
   }
 
   async function join(e: FormEvent) {

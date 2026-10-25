@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
+import { FeedbackProvider } from './components/feedback'
+import { MotionProvider } from './components/motion'
 import './index.css'
 // Starts listening for Android's install prompt as early as possible.
 import './lib/pwa'
@@ -12,6 +14,10 @@ registerSW({ immediate: true })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <MotionProvider>
+      <FeedbackProvider>
+        <App />
+      </FeedbackProvider>
+    </MotionProvider>
   </StrictMode>,
 )

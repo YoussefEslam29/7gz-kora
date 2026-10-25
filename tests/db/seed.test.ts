@@ -100,3 +100,11 @@ it('last week: three teams, penalties, a mid-game swap and a late arrival', asyn
   })
   expect(board.find((row) => row.display_name === 'Ali')!.minutes_in_goal).toBeGreaterThanOrEqual(30)
 })
+
+it('gives every demo player but Hany a player card', async () => {
+  const rows = await selectAs<{ display_name: string; skill_shooting: number | null }>(
+    db, owner, `select display_name, skill_shooting from players where group_id = $1`, [groupId],
+  )
+  // Owner has just joined, so their card is empty too.
+  expect(rows.filter((r) => r.skill_shooting === null).map((r) => r.display_name).sort()).toEqual(['Hany', 'Owner'])
+})

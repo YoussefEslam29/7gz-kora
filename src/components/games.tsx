@@ -8,6 +8,7 @@ import { boardTeams, gameClock, gameScore, minutesTonight, suggestSub } from '..
 import type { Game, MatchDetail, Team } from '../lib/types'
 import { useNow } from '../lib/useNow'
 import { useCurrentGroup } from '../state/group'
+import { useConfirm, useToast } from './feedback'
 import { BallIcon } from './icons'
 import { Lineups, Scoreboard } from './match'
 import { Button, Card, ErrorNote, Heading, LinkButton, StatusChip, TeamTag } from './ui'
@@ -47,6 +48,7 @@ export function GameCard({ detail, onChange }: { detail: MatchDetail; onChange: 
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const confirm = useConfirm()
   const game = detail.runningGame
   if (!game) return null
 
@@ -77,14 +79,16 @@ export function GameCard({ detail, onChange }: { detail: MatchDetail; onChange: 
     }
   }
 
-  function gameOver() {
+  async function gameOver() {
     // A draw with a team waiting: penalties decide who stays on.
     if (score[0] === score[1] && waiting.length > 0) setAsking(true)
-    else if (window.confirm(`Game over at ${score[0]} – ${score[1]}?`)) void end(null)
+    else if (await confirm({ title: 'Game over?', message: `Final score ${score[0]} – ${score[1]}.`, confirmLabel: 'Game over' }))
+      void end(null)
   }
 
   return (
     <>
+      <GoalToast teams={teams} score={score} />
       <div className="sticky top-[calc(env(safe-area-inset-top)+4rem)] z-10 -mx-4 bg-ground/95 px-4 py-2 backdrop-blur">
         <Card strong>
           <div className="mb-2 flex items-center justify-between">
@@ -128,7 +132,7 @@ export function GameCard({ detail, onChange }: { detail: MatchDetail; onChange: 
               </Button>
             </Card>
           ) : (
-            <Button variant="dark" className="w-full" busy={busy} onClick={gameOver}>
+            <Button variant="dark" className="w-full" busy={busy} onClick={() => void gameOver()}>
               Game over
             </Button>
           )}
@@ -141,6 +145,19 @@ export function GameCard({ detail, onChange }: { detail: MatchDetail; onChange: 
       )}
     </>
   )
+}
+
+/** For everyone watching the live night: a short "Goal!" message when the score goes up. */
+function GoalToast({ teams, score }: { teams: [Team, Team]; score: [number, number] }) {
+  const toast = useToast()
+  const seen = useRef(score)
+  useEffect(() => {
+    const [one, two] = seen.current
+    if (score[0] > one) toast(`Goal for Team ${teams[0]}! ${score[0]} – ${score[1]}`)
+    else if (score[1] > two) toast(`Goal for Team ${teams[1]}! ${score[0]} – ${score[1]}`)
+    seen.current = score
+  }, [score, teams, toast])
+  return null
 }
 
 /** Every game of the night, newest first: teams, score, penalties and length. */

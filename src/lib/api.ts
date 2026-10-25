@@ -4,8 +4,10 @@
 // which check permissions and return human-readable errors.
 import { supabase } from './supabase'
 import type {
+  AuditEntry,
   BoardEntry,
   CancelReason,
+  CardFields,
   CheckIn,
   Game,
   Goal,
@@ -25,6 +27,7 @@ import type {
   Player,
   RatingAverages,
   RatingConfig,
+  RatingSettings,
   Role,
   Rsvp,
   RsvpStatus,
@@ -85,24 +88,27 @@ export async function setMinExtraTeamSize(groupId: string, size: number) {
   unwrap(await supabase.from('groups').update({ min_extra_team_size: size }).eq('id', groupId))
 }
 
-export async function renamePlayer(playerId: string, name: string) {
-  unwrap(await supabase.from('players').update({ display_name: name.trim() }).eq('id', playerId))
-}
-
-/** "Happy to play in goal": yourself, or anyone if you're an admin. */
-export async function setHappyInGoal(playerId: string, happy: boolean) {
-  unwrap(await supabase.from('players').update({ happy_in_goal: happy }).eq('id', playerId))
-}
+/** Everything the app reads about a player, the player card included. */
+const PLAYER_COLUMNS = [
+  'id, group_id, user_id, display_name, is_guest, happy_in_goal',
+  'shirt_number, strong_foot, favourite_position, motto',
+  'skill_shooting, skill_passing, skill_dribbling, skill_defending, skill_fitness',
+].join(', ')
 
 export async function getPlayers(groupId: string): Promise<Player[]> {
   const rows = unwrap<(Omit<Player, 'avatar_url'> & { profiles: { avatar_url: string | null } | null })[]>(
     await supabase
       .from('players')
-      .select('id, group_id, user_id, display_name, is_guest, happy_in_goal, profiles!players_user_id_fkey(avatar_url)')
+      .select(`${PLAYER_COLUMNS}, profiles!players_user_id_fkey(avatar_url)`)
       .eq('group_id', groupId)
       .order('display_name'),
   )
   return rows.map(({ profiles, ...p }) => ({ ...p, avatar_url: profiles?.avatar_url ?? null }))
+}
+
+/** The player card with the name and "happy in goal", in one go: yourself, or anyone if you're an admin. */
+export async function saveCard(playerId: string, card: CardFields & Pick<Player, 'display_name' | 'happy_in_goal'>) {
+  unwrap(await supabase.from('players').update(card).eq('id', playerId))
 }
 
 export async function getMembers(groupId: string): Promise<Member[]> {
@@ -113,6 +119,11 @@ export async function getMembers(groupId: string): Promise<Member[]> {
 
 export async function getRatingConfig(groupId: string): Promise<RatingConfig | null> {
   return unwrap(await supabase.from('rating_config').select('*').eq('group_id', groupId).maybeSingle())
+}
+
+/** Admins: the four main rating settings. They count for nights whose voting closes from then on. */
+export async function updateRatingSettings(groupId: string, settings: RatingSettings) {
+  unwrap(await supabase.from('rating_config').update(settings).eq('group_id', groupId))
 }
 
 /** Closes voting on any match whose 24 hours are up. Called when the app opens. */
@@ -310,4 +321,16 @@ export async function getPlayerHistory(playerId: string): Promise<HistoryRow[]> 
     await supabase.from('match_ratings').select('*, matches!inner(*)').eq('player_id', playerId),
   )
   return rows.sort((a, b) => b.matches.played_at.localeCompare(a.matches.played_at))
+}
+
+// ---------------------------------------------------------------------------
+// Change history (admins)
+// ---------------------------------------------------------------------------
+export const AUDIT_PAGE = 50
+
+/** The group's change history, newest first, a page at a time (before = the oldest time already shown). */
+export async function getAuditLog(groupId: string, before: string | null): Promise<AuditEntry[]> {
+  let query = supabase.from('audit_log').select('id, actor_id, action, details, created_at').eq('group_id', groupId)
+  if (before) query = query.lt('created_at', before)
+  return unwrap(await query.order('created_at', { ascending: false }).limit(AUDIT_PAGE))
 }

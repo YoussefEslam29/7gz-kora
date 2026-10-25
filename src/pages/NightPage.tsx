@@ -3,6 +3,7 @@ import { useParams } from 'react-router'
 import { PlayingTime, WaitingAndBench } from '../components/bench'
 import { CancelledNotice, CancelNightForm } from '../components/cancel'
 import { CheckInList, WhoIsHere } from '../components/checkin'
+import { useConfirm, useToast, type Question } from '../components/feedback'
 import { GameCard, GamesList } from '../components/games'
 import { GoalList } from '../components/match'
 import { MoneyCard } from '../components/money'
@@ -10,6 +11,7 @@ import { NextGameCard } from '../components/nextgame'
 import { Results, VotingCard } from '../components/results'
 import { RsvpCard, RsvpLists } from '../components/rsvp'
 import { Button, Card, ErrorNote, Heading, LinkButton, Loading, ShareButton, StatusChip } from '../components/ui'
+import { Cascade } from '../components/motion'
 import * as api from '../lib/api'
 import { errorMessage, formatNightWhen, nightFacts } from '../lib/format'
 import { plannedNightText } from '../lib/share'
@@ -31,6 +33,8 @@ export default function NightPage() {
   const [fixingCheckIns, setFixingCheckIns] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
   const { data, error, loading, reload } = useLoad(
     async () => {
       const detail = await api.getMatch(id)
@@ -64,12 +68,13 @@ export default function NightPage() {
     void refresh()
   }
 
-  async function act(name: string, action: () => Promise<unknown>, confirmText: string) {
-    if (!window.confirm(confirmText)) return
+  async function act(name: string, action: () => Promise<unknown>, question: Question, done: string) {
+    if (!(await confirm(question))) return
     setBusy(name)
     setActionError(null)
     try {
       await action()
+      toast(done)
       changed()
     } catch (e) {
       setActionError(errorMessage(e))
@@ -79,7 +84,7 @@ export default function NightPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <Cascade className="space-y-4">
       <header>
         <div className="flex items-center justify-between gap-2">
           <p className="label">{formatNightWhen(match)}</p>
@@ -105,7 +110,14 @@ export default function NightPage() {
                 size="lg"
                 className="w-full"
                 busy={busy === 'start'}
-                onClick={() => void act('start', () => api.startNight(id), 'Start the night? Replies close and check-in opens.')}
+                onClick={() =>
+                  void act(
+                    'start',
+                    () => api.startNight(id),
+                    { title: 'Start the night?', message: 'Replies close and check-in opens.', confirmLabel: 'Start night' },
+                    'Night started',
+                  )
+                }
               >
                 Start night
               </Button>
@@ -146,7 +158,12 @@ export default function NightPage() {
                   void act(
                     'end',
                     () => api.endNight(id),
-                    'End the night? A game still on ends now. Voting opens for everyone checked in, and the money card appears.',
+                    {
+                      title: 'End the night?',
+                      message: 'A game still on ends now. Voting opens for everyone checked in, and the money card appears.',
+                      confirmLabel: 'End night',
+                    },
+                    'Night ended. Voting is open.',
                   )
                 }
               >
@@ -206,6 +223,6 @@ export default function NightPage() {
           Edit night
         </LinkButton>
       )}
-    </div>
+    </Cascade>
   )
 }

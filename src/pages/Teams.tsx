@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import { useToast } from '../components/feedback'
 import { BackIcon } from '../components/icons'
 import { Avatar, Button, ErrorNote, Loading, Name, Notice, PageTitle, TeamTag } from '../components/ui'
 import * as api from '../lib/api'
+import { selfRating } from '../lib/card'
 import { errorMessage, formatMinutes } from '../lib/format'
 import { minutesTonight, TEAMS } from '../lib/games'
 import { playerStrength, suggestTeams, teamAverages } from '../lib/suggest'
@@ -19,7 +21,7 @@ import { useCurrentGroup } from '../state/group'
 export default function Teams() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { group, player, isAdmin } = useCurrentGroup()
+  const { group, player, players, isAdmin } = useCurrentGroup()
   const [detail, setDetail] = useState<MatchDetail | null>(null)
   const [ratings, setRatings] = useState<RatingAverages | null>(null)
   const [picks, setPicks] = useState<Map<string, Team | null>>(new Map())
@@ -27,6 +29,7 @@ export default function Teams() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const now = useNow(60_000)
+  const toast = useToast()
 
   useEffect(() => {
     api
@@ -51,7 +54,14 @@ export default function Teams() {
   // Players on the pitch, with their team: they keep it until the game ends.
   const pitchTeam = new Map(detail.lineup.map((p) => [p.player_id, p.team]))
   const minutes = minutesTonight(detail.stints, detail.stintPlayers, now)
-  const strength = (playerId: string) => playerStrength(playerId, season, allTime)
+  // Someone new starts at their self-rating (their player card), else 6.0.
+  const selfRatings = new Map(
+    players.flatMap((p) => {
+      const self = selfRating(p)
+      return self === null ? [] : [[p.id, self] as const]
+    }),
+  )
+  const strength = (playerId: string) => playerStrength(playerId, season, allTime, selfRatings)
   const count = (team: Team) => [...picks.values()].filter((t) => t === team).length
   const averages = teamAverages(picks, strength)
   const averageLine = TEAMS.flatMap((t) => {
@@ -84,6 +94,7 @@ export default function Teams() {
     setError(null)
     try {
       await api.setTeamBoard(id, here.map((c) => ({ player_id: c.player_id, team: picks.get(c.player_id) ?? null })))
+      toast('Teams saved')
       navigate(`/nights/${id}`)
     } catch (e) {
       setError(errorMessage(e))

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
+import { GoalSplash, type SplashGoal } from '../components/goalsplash'
 import { BackIcon, BallIcon } from '../components/icons'
 import { GoalList, PlayerGrid, Scoreboard } from '../components/match'
 import { Button, Card, ErrorNote, Heading, Loading, Name, Notice } from '../components/ui'
@@ -25,6 +26,8 @@ export default function Recorder() {
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [last, setLast] = useState<{ goalId: string; text: string } | null>(null)
+  const [splash, setSplash] = useState<SplashGoal | null>(null)
+  const closeSplash = useCallback(() => setSplash(null), [])
 
   if (loading && !data) return <Loading />
   if (!data) return <ErrorNote message={error} onRetry={reload} />
@@ -65,6 +68,7 @@ export default function Recorder() {
       const goalId = await api.logGoal(id, scorer, assisterId, live ? null : game.id)
       const assist = assisterId ? ` (assist ${playerName(assisterId)})` : ''
       setLast({ goalId, text: `Goal for Team ${scorerTeam}: ${playerName(scorer)}${assist}` })
+      if (live && scorerTeam) setSplash({ id: goalId, scorer: playerName(scorer), team: scorerTeam })
       setScorer(null)
       reload()
     } catch (e) {
@@ -91,6 +95,7 @@ export default function Recorder() {
   return (
     <div className="space-y-4">
       {back}
+      <GoalSplash goal={splash} onDone={closeSplash} />
 
       <div className="sticky top-[calc(env(safe-area-inset-top)+4rem)] z-10 -mx-4 bg-ground/95 px-4 py-2 backdrop-blur">
         <p className="label mb-1">

@@ -1,16 +1,26 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ChevronIcon, GloveIcon, StarIcon } from '../components/icons'
-import { Avatar, Button, Card, Empty, ErrorNote, Heading, Loading, Name, RatingBadge } from '../components/ui'
+import { BreakdownTable } from '../components/breakdown'
+import { PlayerCard } from '../components/card'
+import { RatingHistory, type RatedNight } from '../components/history'
+import { ChevronIcon, StarIcon } from '../components/icons'
+import { Cascade, CountUp, Reveal } from '../components/motion'
+import { SelfVsFriends } from '../components/selfvsfriends'
+import { Card, ErrorNote, Heading, LinkButton, Loading, RatingBadge } from '../components/ui'
 import * as api from '../lib/api'
-import { errorMessage, formatDay, formatMinutes } from '../lib/format'
+import { formatDay, formatMinutes } from '../lib/format'
 import type { LeaderboardRow } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
 
+/**
+ * A player's portfolio (Plans/Player-card-and-motion.md section 3): the card,
+ * Self vs friends, the rating history, the stats, and the nights with their
+ * breakdowns.
+ */
 export default function PlayerProfile() {
   const { id = '' } = useParams()
-  const { group, player, myPlayerId, isAdmin, members } = useCurrentGroup()
+  const { group, player, myPlayerId, isAdmin, members, config } = useCurrentGroup()
   const [year] = useState(() => new Date().getFullYear())
   const p = player(id)
 
@@ -29,69 +39,50 @@ export default function PlayerProfile() {
 
   if (!p) return <ErrorNote message="Player not found." />
   const isMe = id === myPlayerId
-  const role = members.find((m) => m.player_id === id)?.role
+  const isAdminPlayer = members.some((member) => member.player_id === id && member.role === 'admin')
+  const role = [isMe ? 'You' : 'Player', isAdminPlayer && 'Admin', !p.user_id && 'no account'].filter(Boolean).join(' · ')
+  // The badge in the card: this season's rating, else all-time, else "New" (nothing while loading).
+  const rating = data?.season
+    ? { value: data.season.avg_rating, label: `Season ${year}` }
+    : data?.allTime
+      ? { value: data.allTime.avg_rating, label: 'All-time' }
+      : data
+        ? null
+        : undefined
+  // Finished nights, oldest first, for the graph and the form (as on the table).
+  const rated: RatedNight[] = (data?.history ?? [])
+    .filter((h) => h.matches.status === 'closed')
+    .map((h) => ({ match_id: h.match_id, played_at: h.matches.played_at, rating: Number(h.rating), is_mvp: h.is_mvp }))
+    .reverse()
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <Avatar name={p.display_name} url={p.avatar_url} size={64} />
-        <div className="min-w-0">
-          <h1 className="font-display text-3xl leading-tight">
-            <Name>{p.display_name}</Name>
-          </h1>
-          <p className="text-sm text-muted">
-            {isMe ? 'You' : 'Player'}
-            {role === 'admin' && ' · Admin'}
-            {!p.user_id && ' · no account'}
-          </p>
-        </div>
-      </div>
-
-      {(isMe || isAdmin) && <RenameForm key={id} playerId={id} current={p.display_name} />}
-      <HappyInGoal playerId={id} happy={p.happy_in_goal} canChange={isMe || isAdmin} />
+    <Cascade className="space-y-4">
+      <PlayerCard player={p} rating={rating} role={role} isMe={isMe} />
+      {(isMe || isAdmin) && (
+        <LinkButton to={`/players/${id}/edit`} variant="secondary" className="w-full">
+          {isMe ? 'Edit my card' : 'Edit card'}
+        </LinkButton>
+      )}
 
       {loading && !data ? (
         <Loading />
       ) : (
         <>
           <ErrorNote message={error} onRetry={reload} />
+          <SelfVsFriends
+            player={p}
+            season={data?.season}
+            allTime={data?.allTime}
+            minNights={config?.min_matches_for_leaderboard ?? 3}
+            isMe={isMe}
+          />
+          <RatingHistory nights={rated} year={year} />
           <StatsCard title={`Season ${year}`} row={data?.season} />
           <StatsCard title="All-time" row={data?.allTime} />
-
-          <section>
-            <Heading className="mb-2">Nights</Heading>
-            {data?.history.length === 0 ? (
-              <Empty title="No rated nights yet">Ratings appear after a night's voting closes.</Empty>
-            ) : (
-              <ul className="divide-y divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
-                {data?.history.map((h) => (
-                  <li key={h.match_id}>
-                    <Link to={`/nights/${h.match_id}`} className="flex min-h-14 items-center gap-3 px-4 py-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold">{formatDay(h.matches.played_at)}</p>
-                        <p className="text-xs text-muted">
-                          {[
-                            h.goals > 0 && `${h.goals} G`,
-                            h.assists > 0 && `${h.assists} A`,
-                            h.clean_sheets > 0 && 'clean sheet',
-                            h.stats_only && 'stats only',
-                          ]
-                            .filter(Boolean)
-                            .join(' · ') || '—'}
-                        </p>
-                      </div>
-                      {h.is_mvp && <StarIcon size={18} className="text-gold" aria-label="Man of the Match" />}
-                      <RatingBadge value={h.rating} />
-                      <ChevronIcon size={18} className="text-muted" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <NightList history={data?.history ?? []} />
         </>
       )}
-    </div>
+    </Cascade>
   )
 }
 
@@ -109,7 +100,7 @@ function StatsCard({ title, row }: { title: string; row: LeaderboardRow | undefi
         <div>
           <Heading>{title}</Heading>
           <p className="text-sm text-muted">
-            Average rating{row?.avg_votes != null && <> · peers give {row.avg_votes.toFixed(1)}</>}
+            Average rating{row?.avg_votes != null && <> · peers give {Number(row.avg_votes).toFixed(1)}</>}
           </p>
         </div>
         <RatingBadge value={row?.avg_rating} size="lg" />
@@ -118,7 +109,9 @@ function StatsCard({ title, row }: { title: string; row: LeaderboardRow | undefi
         {stats.map(([label, value]) => (
           <div key={label}>
             <dt className="text-[11px] leading-tight text-muted">{label}</dt>
-            <dd className="tabular font-display text-2xl">{value}</dd>
+            <dd className="tabular font-display text-2xl">
+              <CountUp value={value} />
+            </dd>
           </div>
         ))}
       </dl>
@@ -132,101 +125,51 @@ function StatsCard({ title, row }: { title: string; row: LeaderboardRow | undefi
   )
 }
 
-function RenameForm({ playerId, current }: { playerId: string; current: string }) {
-  const { refresh } = useCurrentGroup()
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(current)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  if (!editing) {
-    return (
-      <button type="button" onClick={() => setEditing(true)} className="text-sm font-semibold text-brand-ink underline">
-        Change name
-      </button>
-    )
-  }
-
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    try {
-      await api.renamePlayer(playerId, name)
-      await refresh()
-      setEditing(false)
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
+/** The player's rated nights, newest first. Tap one for its breakdown. */
+function NightList({ history }: { history: api.HistoryRow[] }) {
+  const [open, setOpen] = useState<string | null>(null)
+  // With no nights, Rating history already shows the empty state.
+  if (history.length === 0) return null
   return (
-    <form onSubmit={save} className="flex gap-2">
-      <input
-        value={name}
-        maxLength={40}
-        required
-        dir="auto"
-        onChange={(e) => setName(e.target.value)}
-        className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-paper px-3 text-base"
-      />
-      <Button type="submit" busy={busy} disabled={!name.trim()}>
-        Save
-      </Button>
-      <ErrorNote message={error} />
-    </form>
-  )
-}
-
-/** Players happy to play in goal are suggested first when a game needs a keeper. */
-function HappyInGoal({ playerId, happy, canChange }: { playerId: string; happy: boolean; canChange: boolean }) {
-  const { refresh } = useCurrentGroup()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  if (!canChange) {
-    return happy ? (
-      <p className="flex items-center gap-1.5 text-sm">
-        <GloveIcon size={18} /> Happy to play in goal
-      </p>
-    ) : null
-  }
-
-  async function toggle() {
-    setBusy(true)
-    setError(null)
-    try {
-      await api.setHappyInGoal(playerId, !happy)
-      await refresh()
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={happy}
-        disabled={busy}
-        onClick={() => void toggle()}
-        className="flex min-h-14 w-full items-center gap-3 rounded-card border-[1.5px] border-line bg-paper px-4 py-2 text-left"
-      >
-        <GloveIcon size={22} className="shrink-0" />
-        <span className="min-w-0 flex-1">
-          <span className="block font-semibold">Happy to play in goal</span>
-          <span className="block text-xs text-muted">Suggested first when a game needs a goalkeeper.</span>
-        </span>
-        <span aria-hidden className={`h-7 w-12 shrink-0 rounded-full border-2 border-ink p-0.5 ${happy ? 'bg-brand' : 'bg-line'}`}>
-          <span className={`block size-5 rounded-full ${happy ? 'translate-x-5 bg-[#0b0b0b]' : 'bg-ink'}`} />
-        </span>
-      </button>
-      <ErrorNote message={error} />
-    </div>
+    <section>
+      <Heading className="mb-2">Nights</Heading>
+      <ul className="divide-y divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
+        {history.map((h) => (
+          <li key={h.match_id}>
+            <button
+              type="button"
+              aria-expanded={open === h.match_id}
+              onClick={() => setOpen(open === h.match_id ? null : h.match_id)}
+              className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{formatDay(h.matches.played_at)}</span>
+                <span className="block text-xs text-muted">
+                  {[
+                    h.goals > 0 && `${h.goals} G`,
+                    h.assists > 0 && `${h.assists} A`,
+                    h.clean_sheets > 0 && 'clean sheet',
+                    h.stats_only && 'stats only',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </span>
+              </span>
+              {h.is_mvp && <StarIcon size={18} className="text-gold" aria-label="Man of the Match" />}
+              <RatingBadge value={h.rating} />
+              <ChevronIcon size={18} className={`shrink-0 text-muted transition-transform ${open === h.match_id ? 'rotate-90' : ''}`} />
+            </button>
+            <Reveal open={open === h.match_id}>
+              <div className="space-y-3 bg-ground/60 px-4 py-3 text-sm">
+                <BreakdownTable rating={h} />
+                <Link to={`/nights/${h.match_id}`} className="flex items-center justify-between font-semibold text-brand-ink">
+                  Open the night (votes and games) <ChevronIcon size={18} />
+                </Link>
+              </div>
+            </Reveal>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

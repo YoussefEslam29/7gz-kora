@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import * as m from 'motion/react-m'
 import { Link } from 'react-router'
 import { Empty, ErrorNote, Heading, Loading, Name, PageTitle, RatingBadge } from '../components/ui'
 import * as api from '../lib/api'
+import { cascade, cascadeItem } from '../lib/motion'
 import type { LeaderboardRow } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
@@ -112,7 +114,7 @@ function Table({
 }) {
   const sort = SORTS.find((s) => s.key === sortKey)!
   return (
-    <ol className="divide-y divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
+    <m.ol initial="initial" animate="animate" variants={cascade} className="divide-y divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
       <li className="flex items-center gap-3 px-4 py-2 text-xs font-semibold tracking-wide text-muted uppercase" aria-hidden>
         <span className="w-6">#</span>
         <span className="flex-1">Player</span>
@@ -121,7 +123,7 @@ function Table({
         <span className="w-11 text-center">Avg</span>
       </li>
       {rows.map((r, i) => (
-        <li key={r.player_id}>
+        <m.li key={r.player_id} layout variants={cascadeItem}>
           <Link
             to={`/players/${r.player_id}`}
             className={`flex min-h-13 items-center gap-3 px-4 py-2 ${r.player_id === myPlayerId ? 'bg-brand/15' : ''}`}
@@ -136,8 +138,8 @@ function Table({
               <RatingBadge value={r.avg_rating} size="sm" />
             </span>
           </Link>
-        </li>
+        </m.li>
       ))}
-    </ol>
+    </m.ol>
   )
 }

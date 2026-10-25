@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useConfirm, useToast } from '../components/feedback'
 import { Button, ErrorNote, Loading, PageTitle } from '../components/ui'
 import * as api from '../lib/api'
 import { errorMessage, formatLength } from '../lib/format'
@@ -19,6 +20,8 @@ export default function PlanNight() {
   const [form, setForm] = useState<NightForm | null>(null)
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     const load = id
@@ -42,9 +45,12 @@ export default function PlanNight() {
       const details = formToDetails(form)
       if (id) {
         await api.updateNight(id, details)
+        toast('Night saved')
         navigate(`/nights/${id}`)
       } else {
-        navigate(`/nights/${await api.planNight(group.id, details)}`)
+        const newId = await api.planNight(group.id, details)
+        toast('Night planned')
+        navigate(`/nights/${newId}`)
       }
     } catch (e) {
       setError(errorMessage(e))
@@ -53,10 +59,18 @@ export default function PlanNight() {
   }
 
   async function remove() {
-    if (!id || !window.confirm('Delete this night with its replies, goals, votes and ratings? This cannot be undone.')) return
+    if (!id) return
+    const yes = await confirm({
+      title: 'Delete this night?',
+      message: 'Its replies, goals, votes and ratings go too. This cannot be undone.',
+      confirmLabel: 'Delete night',
+      danger: true,
+    })
+    if (!yes) return
     setBusy('delete')
     try {
       await api.deleteMatch(id)
+      toast('Night deleted')
       navigate('/nights')
     } catch (e) {
       setError(errorMessage(e))

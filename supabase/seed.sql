@@ -17,8 +17,9 @@
 -- Ahmed (player 3) collects the money every night: 600 EGP split equally.
 -- Ali and Mahmoud are happy to play in goal. "Suggest teams" uses these
 -- nights' ratings; Demo FC makes Team C from 3 players left over (the default).
+-- Most players have filled in their player card (Hany hasn't yet).
 --
--- Run it AFTER the 6 migration files, ideally in a separate test project.
+-- Run it AFTER the 7 migration files, ideally in a separate test project.
 -- To see it: sign in to the app, tap "Join a group" and enter  DEMO-KICK
 -- The first real person to join becomes the group's admin.
 --
@@ -227,6 +228,31 @@ begin
     v_players := v_players || v_id;
   end loop;
   update public.players set happy_in_goal = true where id in (v_players[10], v_players[12]);
+
+  -- Player cards (Plans/Player-card-and-motion.md): numbers, feet, favourite
+  -- positions, mottos and self-ratings (shooting, passing, dribbling,
+  -- defending, fitness). Hany's (15) is still empty.
+  update public.players p
+  set shirt_number = c.shirt, strong_foot = c.foot, favourite_position = c.pos, motto = c.motto,
+      skill_shooting = c.s[1], skill_passing = c.s[2], skill_dribbling = c.s[3],
+      skill_defending = c.s[4], skill_fitness = c.s[5]
+  from (values
+    (1,  10,   'right', 'attack',   'Pass it to me',         array[8, 7, 8, 6, 9]),
+    (2,  7,    'left',  'midfield', null,                    array[9, 9, 9, 8, 9]),
+    (3,  4,    'right', 'defence',  'Pay up after the game', array[5, 6, 5, 8, 7]),
+    (4,  9,    'right', 'attack',   null,                    array[8, 6, 7, 5, 7]),
+    (5,  8,    'both',  'midfield', 'Run, then run more',    array[6, 7, 6, 7, 9]),
+    (6,  11,   'left',  'attack',   null,                    array[7, 6, 8, 4, 6]),
+    (7,  5,    'right', 'defence',  null,                    array[4, 5, 4, 7, 6]),
+    (8,  17,   'right', 'anywhere', 'Sorry I''m late',       array[6, 6, 6, 6, 6]),
+    (9,  14,   'right', 'midfield', 'يلا بينا',              array[7, 8, 7, 6, 7]),
+    (10, 1,    'right', 'goal',     'Nothing gets past me',  array[3, 5, 3, 7, 6]),
+    (11, 6,    'left',  'defence',  null,                    array[5, 6, 5, 7, 7]),
+    (12, 23,   'both',  'goal',     null,                    array[4, 5, 4, 6, 6]),
+    (13, 19,   'right', 'attack',   null,                    array[7, 6, 7, 5, 8]),
+    (14, null, null,    'anywhere', null,                    array[6, 6, 6, 6, 6])
+  ) as c(n, shirt, foot, pos, motto, s)
+  where p.id = v_players[c.n];
 
   -- Last season (shows up in the All-time tab only): B wins two of three.
   v_night := pg_temp.seed_night(v_group, v_players, make_date(v_year - 1, 12, 18), 6, v_twelve, '{}', 'closed');

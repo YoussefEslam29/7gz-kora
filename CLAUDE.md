@@ -19,7 +19,7 @@ A football rating PWA for a group of friends in Egypt (React + Supabase), being 
 - Ratings stay computed in **one place** (`compute_match_ratings`), including discipline deductions. Every number stays owner-tunable in `rating_config`.
 - **A night is still a row in `matches`.** Only the screens say "night".
 - **Text on the brand green `#00BF63` is always black.** White only in the logo lettering.
-- **In a browser, the website shows only the Install screen.** Sign-in happens only inside the installed app. `VITE_ALLOW_BROWSER=true` is a development-only bypass and must never be set on Vercel.
+- **In a browser, the website shows only the Install screen** (plus `/privacy.html`, which Google needs to publish the sign-in). Sign-in happens only inside the installed app. `VITE_ALLOW_BROWSER=true` is a development-only bypass and must never be set on Vercel.
 - **Names can be Arabic:** use `dir="auto"` or `<bdi>`, and keep them left-aligned in lists.
 
 ## Environment

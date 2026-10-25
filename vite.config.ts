@@ -52,6 +52,8 @@ export default defineConfig({
       workbox: {
         // App shell only. Data always comes fresh from Supabase.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        // The privacy page is its own page, not part of the app.
+        navigateFallbackDenylist: [/^\/privacy\.html$/],
         navigateFallback: '/index.html',
       },
     }),

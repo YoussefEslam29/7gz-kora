@@ -121,7 +121,10 @@ You should then see the sign-in screen. Google sign-in won't work until Step 6.
 3. Under **Authorized redirect URIs**, paste the Supabase **Callback URL** from 6a.
 4. Click **Create** and copy the **Client ID** and **Client secret**.
 
-**6e. Publish the app**, so friends aren't limited to a "test users" list: go to **Audience** and click **Publish app** → **Confirm**. With only the basic scopes, Google doesn't need to review it.
+**6e. Publish the app**, so friends aren't limited to a "test users" list. Do this **after Step 7**, because Google wants your website's address first. Until then you're a test user yourself, so sign-in already works for you.
+
+1. Go to **Branding** and fill in: the app name `7GZ-KORA`, your support email, **Application home page** `https://7gz-kora.vercel.app` (your Vercel address), **Application privacy policy link** `https://7gz-kora.vercel.app/privacy.html` (the app's short privacy page), **Authorized domains** `7gz-kora.vercel.app`, and your developer contact email. Leave the logo empty. Click **Save**.
+2. Go to **Audience** and click **Publish app** → **Confirm**. With only the basic scopes, Google doesn't need to review it. If the button is still grey, hover over it: Google lists what's missing.
 
 **6f. Turn on Google in Supabase:** back on the Supabase Google provider page, switch it **on**, paste the Client ID and Client secret, and click **Save**.
 

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>7GZ-KORA · Privacy</title>
+    <!-- The one public page besides the Install screen: Google needs a privacy
+         policy link before the sign-in can be published (decided 2026-10-25). -->
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <meta name="theme-color" content="#00BF63" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --brand: #00bf63;
+        --ink: #0b0b0b;
+        --paper: #ffffff;
+        --ground: #f2f6f3;
+        --muted: #56625b;
+        --line: #dde5e0;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #f2f5f3;
+          --paper: #141b17;
+          --ground: #0a0f0c;
+          --muted: #9aa8a0;
+          --line: #26302a;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      header {
+        background: var(--brand);
+        color: #0b0b0b;
+        padding: 20px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      header img { width: 30px; height: 46px; }
+      header strong { font-size: 22px; letter-spacing: 0.01em; }
+      main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+      h1 { font-size: 28px; line-height: 1.1; margin: 0 0 4px; }
+      h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 28px 0 6px; }
+      p, ul { margin: 0 0 10px; }
+      ul { padding-left: 20px; }
+      .card { background: var(--paper); border: 1.5px solid var(--line); border-radius: 18px; padding: 16px; }
+      .small { color: var(--muted); font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="/logo.svg" alt="" />
+      <strong>7GZ-KORA</strong>
+    </header>
+    <main>
+      <h1>Privacy</h1>
+      <p class="small">Last updated 25 October 2026</p>
+
+      <div class="card">
+        <p>
+          7GZ-KORA is a private app for a group of friends who play football together. You can only use it with an
+          invite code from someone in the group.
+        </p>
+
+        <h2>What we keep</h2>
+        <ul>
+          <li>From your Google account when you sign in: your name, email address and profile photo.</li>
+          <li>
+            What you do in the app: the groups you join, your replies to nights, check-in times, teams, goals, votes,
+            ratings, and whether you have paid your share of the pitch.
+          </li>
+        </ul>
+
+        <h2>Who can see it</h2>
+        <p>
+          Only the members of your group. Votes stay secret until voting closes; then the group sees who voted what.
+          Nothing is public, nothing is sold, and nothing is used for ads.
+        </p>
+
+        <h2>Where it is kept</h2>
+        <p>The data is stored with Supabase (database and sign-in), and the app is hosted on Vercel.</p>
+
+        <h2>Removing your data</h2>
+        <p>
+          You can leave a group at any time in the app (More → Leave this group). To have your account and data deleted
+          completely, ask your group admin or write to the support email shown on the Google sign-in screen.
+        </p>
+      </div>
+    </main>
+  </body>
+</html>

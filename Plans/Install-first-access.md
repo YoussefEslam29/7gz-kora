@@ -11,6 +11,7 @@
 | Opening the website in a browser | **Install screen only:** the logo, the name and how to install. No sign-in, no description, no features, no group data. |
 | Where people sign in | **Only inside the installed app** |
 | What the public can see | **Name and logo only.** No description anywhere, link previews (WhatsApp, etc.) show just the name and logo, and the site is hidden from search engines. |
+| Privacy page (2026-10-25) | **One exception: `/privacy.html`**, a short privacy note. Google requires a privacy policy link before the sign-in can be published for everyone. It is hidden from search engines too. |
 | How people "download" the app | **Install from the browser** (Add to Home Screen). No app stores, no APK. |
 
 ---
@@ -64,6 +65,7 @@ The design follows `Design/README.md`: a honeycomb green screen, the white mark,
 | Web app manifest | `name` and `short_name` "7GZ-KORA", no `description` |
 | Sign-in screen | No tagline or feature text |
 | `/install` and "How it works" | The install steps live on the Install screen. "How it works" (the rating rules) stays inside the signed-in app only. |
+| `/privacy.html` | A static page in `public/` (Vercel serves real files before the catch-all rewrite). Google's Branding page links to it. |
 
 The app's code is still downloaded by the browser, as with every website, but **no group data is ever sent without signing in**: the database's Row Level Security already guarantees that.
 

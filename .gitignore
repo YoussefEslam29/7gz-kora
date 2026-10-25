@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 
 # Local environment variables (keep secrets out of git)
-*.env
+.env.example
 .env
 .env.local
 .env.development.local

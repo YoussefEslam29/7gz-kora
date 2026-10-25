@@ -1,6 +1,6 @@
 # Prompt for the next Claude Code session: continue the 7GZ-KORA upgrade
 
-You're continuing an existing project: a football rating PWA for a group of friends in Egypt (React + Supabase), being upgraded and renamed **7GZ-KORA**. Everything to build is already decided and written down in `Plans/`. **Stages 1 and 2 are built.** Your job is stage 3 (then 4 and 5), one stage at a time, with tests, and with the owner's approval at each step.
+You're continuing an existing project: a football rating PWA for a group of friends in Egypt (React + Supabase), being upgraded and renamed **7GZ-KORA**. Everything to build is already decided and written down in `Plans/`. **Stages 1 to 3 are built.** Your job is stage 4 (then 5), one stage at a time, with tests, and with the owner's approval at each step.
 
 The root `CLAUDE.md` loads automatically and holds the working rules. Follow it; this file adds what's specific to where the work stands now.
 
@@ -28,9 +28,10 @@ Then the code: `supabase/migrations/*.sql` (5 files), `supabase/seed.sql`, `test
 
 - **Phase 1** built (`6ce68a9`). **Stage 1** (rename, design, install-first access, nights, RSVP and waiting list, check-in, money card, cancelled nights, WhatsApp share of a planned night) built in `e40931d`. **Stage 2** (games, team board A/B/C/bench, timer, swaps, penalties, admin-only goals, minutes played and in goal, keeper and sub suggestions, one rating per night with the team-impact fix) built in `880fe2e`.
 - After that the owner added a public `/privacy.html` (`650c347`, needed so Google sign-in can be published; it's the one public page besides the Install screen, recorded in `Plans/Install-first-access.md`) and the `@supabase/server` dependency (`4f5a994`).
-- **111 tests** pass (`npm test`); `npx tsc -b`, `npm run lint` (0 warnings) and `npm run build` are clean.
-- **A real Supabase project exists, and all 5 migration files have been run on it** (the owner confirmed file 5 on 2026-10-25).
-- **Never edit an existing migration file.** Every database change goes in a **new** file (stage 3 = `20261026000100_<name>.sql` or the date you build it): `alter table`, `create or replace function`, `drop function` + `create` when arguments or return columns change, and moving existing rows.
+- **Stage 3** (the team suggester: `src/lib/suggest.ts`, Suggest teams on the team board, the "Extra team from N players" setting in migration file 6, `20261025000200_team_suggester.sql`) built on 2026-10-25; see `Plans/implementation/stage-3.md`.
+- **129 tests** pass (`npm test`); `npx tsc -b`, `npm run lint` (0 warnings) and `npm run build` are clean.
+- **A real Supabase project exists.** Files 1-5 have been run on it; the owner was asked to run file 6 before pushing stage 3. At the start, ask whether they have (multiple choice).
+- **Never edit an existing migration file.** Every database change goes in a **new** file (stage 4 = `20261026000100_<name>.sql` or the date you build it, sorting after file 6): `alter table`, `create or replace function`, `drop function` + `create` when arguments or return columns change, and moving existing rows.
 - `main` is pushed to GitHub (`YoussefEslam29/7gz-kora`) up to `4f5a994`, which includes stage 2.
 - **Vercel:** project `7gz-kora` (team `team_iW3kj4FDmRd2y0Hz8b2U9cMN`, project `prj_6ro39cfyOF4eqvAFjfl17yu0l4Q5`; the Vercel MCP tools work for deployments and build logs, not for listing env vars). The first production deploy **failed on purpose**: `VITE_ALLOW_BROWSER` was set in the project's environment variables, and `vite.config.ts` refuses to build with it. The owner was told to delete that variable and redeploy, then do README Step 7 (Supabase Site URL and Redirect URLs, Google Authorized JavaScript origins), Step 6e (Google Branding with the privacy link, then Publish) and the real-phone sign-in test (README section 3). At the start, check the latest deployment's state with the Vercel MCP and tell the owner in one line whether it's live; if it failed again, show them the error from the build log in plain words.
 
@@ -69,7 +70,7 @@ Then the code: `supabase/migrations/*.sql` (5 files), `supabase/seed.sql`, `test
 **Seeing the app without the real Supabase.** Use a **temporary** stand-in in the session's scratch folder (the owner declined a permanent one). All the scripts are in `Plans/implementation/stage-2.md`, Task 11 (`session.mjs`, `db.mjs`, `postgrest.conf`, `proxy.mjs`, `live.mjs`, `shots.mjs`). Copy them and adapt `live.mjs` to set up whatever the new screens need.
 - PGlite + `@electric-sql/pglite-socket` on `127.0.0.1:54329`, PostgREST **14.18** (v16 fails on Windows) with `db-prepared-statements = false`, `db-pool = 1`, `db-channel-enabled = false`, and `?sslmode=disable&gssencmode=disable` on the `db-uri`.
 - `gh` isn't installed: download PostgREST with `curl` from `https://github.com/PostgREST/postgrest/releases/download/v14.18/postgrest-v14.18-windows-x86-64.zip`.
-- Port 5173 is often taken by the owner's own `npm run dev`: run the stand-in app on **5180** (`VITE_ALLOW_BROWSER=true` plus the stand-in URL and key). Don't stop the owner's processes.
+- Port 5173 is often taken by the owner's own `npm run dev`: run the stand-in app on **5180** (or **5181**: in the stage 3 session 5180 was taken too) (`VITE_ALLOW_BROWSER=true` plus the stand-in URL and key). Don't stop the owner's processes.
 - Screenshots and clicks: `playwright-core` with the installed Edge (`channel: 'msedge'`). `shots.mjs` supports `AS=member` (the non-admin view) and `CLICK="<button text>"`. In Git Bash, set `MSYS_NO_PATHCONV=1` when passing `/` routes. Full-page screenshots draw the fixed bottom tab bar mid-page: that's expected.
 
 **PostgREST embeds.** `matches` → `match_players` needs `match_players!match_players_match_id_fkey`, and `matches` → `games` uses `games!games_match_id_fkey`. New foreign keys create new paths: name constraints explicitly and test every embed.
@@ -80,8 +81,7 @@ Then the code: `supabase/migrations/*.sql` (5 files), `supabase/seed.sql`, `test
 
 ## 7. Start now
 
-The owner already answered the opening questions (2026-10-25): file 5 is run, the Vercel deploy is being fixed, and **they want stage 3 started now**. So don't ask them again:
-
 1. Check the latest Vercel deployment (section 3) and report it in one line.
-2. Read everything in section 2.
-3. Write the stage 3 plan, summarise it in plain words, and ask for approval (multiple choice), offering to build it here, step by step, first.
+2. Ask (multiple choice) whether migration file 6 has been run on the live project.
+3. Read everything in section 2, plus `Plans/implementation/stage-3.md`.
+4. Write the stage 4 plan (punishments and loyalty points), summarise it in plain words, and ask for approval (multiple choice), offering to build it here, step by step, first.

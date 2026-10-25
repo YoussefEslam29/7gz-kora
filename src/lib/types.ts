@@ -12,6 +12,8 @@ export interface Group {
   id: string
   name: string
   invite_code: string | null
+  /** "Extra team from N players": the team suggester makes Team C from this many left over. */
+  min_extra_team_size: number
 }
 
 export interface Membership {
@@ -279,6 +281,12 @@ export interface LeaderboardRow {
   avg_minutes: number
   /** All minutes in goal. */
   minutes_in_goal: number
+}
+
+/** Each player's average night rating, this season and all-time (for the team suggester). */
+export interface RatingAverages {
+  season: Map<string, number>
+  allTime: Map<string, number>
 }
 
 /** A night in a list, with its games and enough to show their scores. */

@@ -25,13 +25,14 @@ It is a PWA (a website that installs like an app). In a browser the website show
 
 ## 1. What's built so far
 
-**Phase 1** (`Plans/football-idea.md`) and **stages 1 and 2 of the 7GZ-KORA upgrade** (`Plans/README.md`):
+**Phase 1** (`Plans/football-idea.md`) and **stages 1 to 3 of the 7GZ-KORA upgrade** (`Plans/README.md`):
 
 - The 7GZ-KORA look (`Design/README.md`), light and dark mode; Arabic names display correctly
 - **Install first:** in a browser the website shows only the Install screen: the logo, the name, the steps for that phone, and the invite code when opened from an invite link. Sign-in happens inside the installed app. Search engines are kept out, and link previews show only the name and logo.
 - Google sign-in (plus an optional email-code sign-in), groups, invite codes, admins and members
 - **Nights:** an admin plans a night (date, time, pitch, length, cost, players per side, collector, player limit), pre-filled from the last one. Friends tap **I'm in** or **Out**. When the night is full, "I'm in" joins a waiting list, and the first person waiting moves up automatically when someone drops out. A planned night can be shared to WhatsApp.
 - **At the pitch:** the admin starts the night and checks people in (anyone in the group; the arrival time is saved; tap again when someone leaves early), then puts everyone on the **team board**: Team A, B or C (white, orange and blue bibs) or the bench.
+- **Suggest teams:** one tap on the team board makes fair teams from everyone's ratings (this season's, then all-time, 6.0 for someone new): a snake draft, then swaps until the team averages are as close as they get. Two full teams, plus Team C when enough players are left over (3 by default: **More → Team suggester**); the rest are subs, starting with whoever has played most, then whoever arrived last. The admin changes anything before saving, and players on the pitch stay where they are.
 - **Games:** many short games in a night, each with a timer (10 minutes by default) that buzzes but never ends the game. The app suggests the next game (the winner stays on, the waiting team comes on) and a goalkeeper for each team (whoever is happy in goal, then whoever has had the fewest minutes in goal). **Swap and continue** keeps the score; **End game and swap** starts a new game at 0–0. A draw with a team waiting asks who won on penalties, which is still a draw for ratings. The bench shows everyone's minutes and suggests who comes on next.
 - **Only admins log goals**; players can dispute a goal. An admin can add a forgotten goal to any game of the night.
 - **One rating per night** from all its games (see section 6).
@@ -39,7 +40,7 @@ It is a PWA (a website that installs like an app). In a browser the website show
 - **Money card:** the cost is split equally among everyone checked in, rounded up to a whole pound ("You owe 47 EGP to Ahmed"). The collector or an admin ticks people off.
 - Voting (1–10, "Didn't see", Man of the Match), ratings with a full breakdown, the season table and player profiles, as in Phase 1.
 
-**Coming next** (`Plans/README.md`): the team suggester, punishments and loyalty points, Team of the Night and best duos.
+**Coming next** (`Plans/README.md`): punishments and loyalty points, Team of the Night and best duos.
 
 ---
 
@@ -66,10 +67,10 @@ You'll create two free accounts (Supabase and Vercel) and set up Google sign-in.
 
 1. In your Supabase project, open **SQL Editor** (left menu), then **New query**.
 2. Open `supabase/migrations/20261023000100_schema.sql` from this folder, copy all of it, paste it into the editor and click **Run**. You should see "Success".
-3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`, then `20261025000100_games.sql`. **Order matters.**
+3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`, then `20261025000100_games.sql`, then `20261025000200_team_suggester.sql`. **Order matters.**
 4. (Optional, for trying things out) Run `supabase/seed.sql` too. See [Demo data](#demo-data).
 
-> **Already ran the first four files?** Then run only `20261025000100_games.sql`, once, at a time when no night is in progress. Each of your existing nights becomes one game, and their ratings stay as they are. Do it before the new version of the app goes live on Vercel (or right when it does): the new app needs it.
+> **Already ran some of the files?** Run only the ones after them, in order, once each. `20261025000100_games.sql` must run when no night is in progress (each existing night becomes one game; their ratings stay as they are). `20261025000200_team_suggester.sql` can run at any time: it adds the "Extra team from N players" setting, 3 for every group. **Run them before you push the new version** (every push updates the app on Vercel, and the new app needs them).
 
 ### Step 4: Connect the app to Supabase (environment variables)
 
@@ -257,7 +258,13 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 28. **"Fewest minutes in goal this season"** counts nights whose voting has closed.
 29. **Profiles show** your average minutes on the pitch per night and your minutes in goal.
 30. **Home and the Nights list show how many games** a night had, instead of one score.
-31. **The "extra team from N players" setting** comes with the team suggester in stage 3, where it's used.
+31. **The team suggester runs in the app**, from ratings already stored: your season rating, then your all-time rating, then 6.0 if you're new. Only finished nights count, as on the table.
+32. **Subs are whoever has played the most minutes tonight**, then whoever arrived last. At the start of a night, that's simply the last to arrive.
+33. **Three teams at most** (A, B and C, the three bib colours). Anyone more is a sub.
+34. **During a game, Suggest teams keeps the players on the pitch where they are** and only places the others. Between games it reshuffles everyone, so only tap it when you want new teams.
+35. **"Extra team from N players"** is under **More → Team suggester**: 2 to 7 in the app (up to 11 in the database). Everyone can see it; admins change it.
+36. **The team board shows each team's average rating**, also while you change teams by hand.
+37. **Players with the same rating** are drafted in name order, so the same players always give the same suggestion.
 
 ---
 
@@ -265,7 +272,7 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 
 ### Demo data
 
-`supabase/seed.sql` creates a group called **Demo FC** with 15 fake players (one with an Arabic name) and nights with several games each: 4 finished nights (one from last year; last week's has three teams, a draw won on penalties, a mid-game swap and a late arrival), a night cancelled for rain, yesterday's night with voting open (with an "End game and swap") and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money; Ali and Mahmoud are happy in goal. Run it in the SQL Editor after the **five** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
+`supabase/seed.sql` creates a group called **Demo FC** with 15 fake players (one with an Arabic name) and nights with several games each: 4 finished nights (one from last year; last week's has three teams, a draw won on penalties, a mid-game swap and a late arrival), a night cancelled for rain, yesterday's night with voting open (with an "End game and swap") and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money; Ali and Mahmoud are happy in goal. Run it in the SQL Editor after the **six** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
 
 Ideally use a separate free Supabase project for testing. To remove the demo group later, run this in the SQL Editor:
 
@@ -279,22 +286,23 @@ delete from public.groups where name = 'Demo FC';
 npm test
 ```
 
-This runs 111 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
+This runs 129 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
 
 - `tests/db/rating.test.ts`: the two worked examples from the brief (Player A 8.3, Player B 5.6), the five night examples from `Plans/Football-scenario.md` (winner stays on, swap and continue, a late arrival, clean sheets, penalties), "End game and swap", a night with no goals, a player who never got on the pitch, a goalkeeper swapped mid-game, the team-impact fix, and the caps, saves, disputed goals, Man of the Match ties and custom weights
 - `tests/db/games.test.ts`: the team board, starting games with goalkeepers, admin-only goals, Game over and penalties, both kinds of swap, subs, adding a forgotten goal, and security
 - `tests/db/migrate.test.ts`: nights from before games moving over, exactly as on the live project
+- `tests/db/teams.test.ts`: the "Extra team from N players" setting: 3 by default, only admins change it, only 2 to 11, and groups from before it get 3
 - `tests/db/nights.test.ts`: planning a night, "I'm in" / "Out" and the waiting list, check-in, ending and cancelling a night, and the money split, including the worked example 600 EGP ÷ 13 players → 47 EGP each
 - `tests/db/flow.test.ts`: groups, invite codes, permissions, a full night from planning to results, secret votes, auto-closing, and admin fixes after closing
 - `tests/db/seed.test.ts`: the demo data loads correctly
-- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts, formatting, and the game helpers (next game, minutes, goalkeeper and sub suggestions, the clock)
+- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts, formatting, the game helpers (next game, minutes, goalkeeper and sub suggestions, the clock), and the team suggester (how many teams, fair teams for known ratings, who sits out, players on the pitch staying put)
 
 Other commands: `npm run build` (production build), `npm run lint`, `npm run icons` (rebuild the app icons after changing `public/app-icon.svg`).
 
 ### Project layout
 
 ```
-supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4), games + night ratings (5)
+supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4), games + night ratings (5), team suggester setting (6)
 supabase/seed.sql      Demo data
 src/lib/               Every call the app makes to Supabase (api.ts), plus small tested helpers
 src/pages/             One file per screen
@@ -331,8 +339,9 @@ Things to know:
 | After Google sign-in you land on the wrong address, or nothing happens | Check **Supabase → Authentication → URL Configuration**: the Site URL and Redirect URLs must include your exact app address. |
 | Friends see "access blocked" or are told the app is in testing | Publish the consent screen (Step 6e). |
 | "Email address not authorized" when asking for a code | Custom SMTP isn't set up yet (section 4, part 1). |
-| "permission denied" or "function ... does not exist" errors | One of the five SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
+| "permission denied" or "function ... does not exist" errors | One of the six SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
 | "function public.start_game ... does not exist", or the team board and Swap don't work | `20261025000100_games.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
+| "column groups_1.min_extra_team_size does not exist", or the app can't load your group | `20261025000200_team_suggester.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
 | A friend can't see the group | They need to join with the invite code (More → Invite code). |
 | The website only shows the Install screen | That's on purpose: sign in from the installed app. For development on a computer, add `VITE_ALLOW_BROWSER=true` to `.env.local`. |
 | The Vercel build fails with "VITE_ALLOW_BROWSER must never be set on Vercel" | Remove that variable from the project's Environment Variables and redeploy. |

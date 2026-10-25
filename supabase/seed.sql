@@ -15,9 +15,10 @@
 --   * in 3 days: planned, with a 10-player limit: 10 in, 1 on the waiting
 --     list and 1 out, so you can see the waiting list
 -- Ahmed (player 3) collects the money every night: 600 EGP split equally.
--- Ali and Mahmoud are happy to play in goal.
+-- Ali and Mahmoud are happy to play in goal. "Suggest teams" uses these
+-- nights' ratings; Demo FC makes Team C from 3 players left over (the default).
 --
--- Run it AFTER the 5 migration files, ideally in a separate test project.
+-- Run it AFTER the 6 migration files, ideally in a separate test project.
 -- To see it: sign in to the app, tap "Join a group" and enter  DEMO-KICK
 -- The first real person to join becomes the group's admin.
 --

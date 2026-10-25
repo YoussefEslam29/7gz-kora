@@ -1171,3 +1171,12 @@ End the commit message with the attribution line. Don't push unless asked. Add a
 | README, seed, How it works in sync; embeds; 390 px light/dark check; owner runs file 6 (NEXT-SESSION-PROMPT §5) | 4, 5, 6 |
 
 Left for later stages on purpose: punishments, loyalty points and badges (stage 4); Team of the Night/Month, best duos and the results share (stage 5).
+
+
+---
+
+## Changes made during the build
+
+- **No code changes from the plan.** Every task's code went in as written (copied out of this file with a small node script), and every test passed on the first run after its code was added: 129 tests (111 + 6 database + 12 suggester).
+- **Stand-in port:** both 5173 and 5180 were already taken by other processes, so the stand-in app ran on **5181**. Nothing else was stopped.
+- **Screens checked** (390 px, light and dark): the team board before and after Suggest teams (17 checked in at 6 a side → 6 / 6 / 5, averages 6.1 · 6.1 · 6.1), the team board during game 1 (the 12 on the pitch kept A and B, the other 5 went to Team C), Settings as admin (tapping 4 saved 4, tapping 3 set it back) and as a member (no picker; a member's direct update changed nothing), and the Games card on How it works. Every PostgREST embed returned 200.

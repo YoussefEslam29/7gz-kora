@@ -23,6 +23,7 @@ import type {
   NightDetails,
   Payer,
   Player,
+  RatingAverages,
   RatingConfig,
   Role,
   Rsvp,
@@ -50,7 +51,7 @@ async function rpc<T = void>(fn: string, args: Record<string, unknown> = {}): Pr
 // ---------------------------------------------------------------------------
 export async function getMemberships(userId: string): Promise<Membership[]> {
   const rows = unwrap<{ role: Role; player_id: string; groups: Group }[]>(
-    await supabase.from('group_members').select('role, player_id, groups(id, name, invite_code)').eq('user_id', userId),
+    await supabase.from('group_members').select('role, player_id, groups(id, name, invite_code, min_extra_team_size)').eq('user_id', userId),
   )
   return rows
     .map((r) => ({ group: r.groups, role: r.role, player_id: r.player_id }))
@@ -77,6 +78,11 @@ export const removeMember = (groupId: string, userId: string) =>
 
 export async function renameGroup(groupId: string, name: string) {
   unwrap(await supabase.from('groups').update({ name: name.trim() }).eq('id', groupId))
+}
+
+/** "Extra team from N players" for the team suggester (admins). */
+export async function setMinExtraTeamSize(groupId: string, size: number) {
+  unwrap(await supabase.from('groups').update({ min_extra_team_size: size }).eq('id', groupId))
 }
 
 export async function renamePlayer(playerId: string, name: string) {
@@ -288,6 +294,13 @@ export async function getSeasonYears(groupId: string): Promise<number[]> {
 /** year = null for all-time. */
 export const getLeaderboard = (groupId: string, year: number | null) =>
   rpc<LeaderboardRow[]>('get_leaderboard', { p_group_id: groupId, p_year: year })
+
+/** Ratings already stored, for the team suggester: each player's average this season and all-time. */
+export async function getRatingAverages(groupId: string, year: number): Promise<RatingAverages> {
+  const [season, allTime] = await Promise.all([getLeaderboard(groupId, year), getLeaderboard(groupId, null)])
+  const byPlayer = (rows: LeaderboardRow[]) => new Map(rows.map((r) => [r.player_id, Number(r.avg_rating_exact)]))
+  return { season: byPlayer(season), allTime: byPlayer(allTime) }
+}
 
 export type HistoryRow = MatchRating & { matches: Match }
 

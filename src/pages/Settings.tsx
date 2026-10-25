@@ -8,6 +8,9 @@ import type { Member } from '../lib/types'
 import { useAuth } from '../state/auth'
 import { useCurrentGroup } from '../state/group'
 
+/** "Extra team from N players": the choices offered (the database allows 2 to 11). */
+const EXTRA_TEAM_SIZES = [2, 3, 4, 5, 6, 7]
+
 export default function Settings() {
   const { user, signOut } = useAuth()
   const { group, isAdmin, members, player, memberships, switchGroup, config, refresh } = useCurrentGroup()
@@ -73,6 +76,8 @@ export default function Settings() {
           How ratings are calculated <ChevronIcon size={18} />
         </Link>
       </Card>
+
+      <TeamSuggesterCard />
 
       <Card>
         <Heading className="mb-2">Your groups</Heading>
@@ -320,5 +325,54 @@ function MemberRow({
         </div>
       )}
     </li>
+  )
+}
+
+/** "Extra team from N players" for the team suggester: everyone sees it, admins change it. */
+function TeamSuggesterCard() {
+  const { group, isAdmin, refresh } = useCurrentGroup()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const size = group.min_extra_team_size
+  const sizes = [...new Set([...EXTRA_TEAM_SIZES, size])].sort((a, b) => a - b)
+
+  async function choose(n: number) {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.setMinExtraTeamSize(group.id, n)
+      await refresh()
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <Heading className="mb-2">Team suggester</Heading>
+      <p className="text-sm">
+        Extra team from <strong>{size} players</strong>: when at least {size} are left over after two full teams, they
+        make Team C. Fewer wait on the bench as subs.
+      </p>
+      {isAdmin && (
+        <div className="seg mt-3" role="group" aria-label="Extra team from">
+          {sizes.map((n) => (
+            <button
+              key={n}
+              type="button"
+              disabled={busy}
+              aria-pressed={size === n}
+              className={size === n ? 'sel' : ''}
+              onClick={() => void choose(n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+      <ErrorNote message={error} />
+    </Card>
   )
 }

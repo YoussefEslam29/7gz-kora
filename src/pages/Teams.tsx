@@ -5,21 +5,25 @@ import { Avatar, Button, ErrorNote, Loading, Name, Notice, PageTitle, TeamTag } 
 import * as api from '../lib/api'
 import { errorMessage, formatMinutes } from '../lib/format'
 import { minutesTonight, TEAMS } from '../lib/games'
-import type { MatchDetail, Team } from '../lib/types'
+import { playerStrength, suggestTeams, teamAverages } from '../lib/suggest'
+import type { MatchDetail, RatingAverages, Team } from '../lib/types'
 import { useNow } from '../lib/useNow'
 import { useCurrentGroup } from '../state/group'
 
 /**
  * The team board (admins): Team A, B or C, or the bench ("Out"), for everyone
- * checked in, with their minutes tonight. While a game is on, players on the
- * pitch are moved with Swap.
+ * checked in, with their minutes tonight. "Suggest teams" fills in fair teams
+ * from the ratings, to change before saving. While a game is on, players on
+ * the pitch are moved with Swap.
  */
 export default function Teams() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { player, isAdmin } = useCurrentGroup()
+  const { group, player, isAdmin } = useCurrentGroup()
   const [detail, setDetail] = useState<MatchDetail | null>(null)
+  const [ratings, setRatings] = useState<RatingAverages | null>(null)
   const [picks, setPicks] = useState<Map<string, Team | null>>(new Map())
+  const [suggested, setSuggested] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const now = useNow(60_000)
@@ -27,21 +31,53 @@ export default function Teams() {
   useEffect(() => {
     api
       .getMatch(id)
-      .then((d) => {
+      .then(async (d) => {
+        // "This season" is the night's calendar year, as on the table.
+        const averages = await api.getRatingAverages(d.match.group_id, Number(d.match.played_at.slice(0, 4)))
         setDetail(d)
+        setRatings(averages)
         setPicks(new Map(d.checkIns.map((c) => [c.player_id, c.team])))
       })
       .catch((e: unknown) => setError(errorMessage(e)))
   }, [id])
 
   if (!isAdmin) return <ErrorNote message="Only group admins can change the teams." />
-  if (!detail) return error ? <ErrorNote message={error} /> : <Loading />
+  if (!detail || !ratings) return error ? <ErrorNote message={error} /> : <Loading />
 
+  const { season, allTime } = ratings
+  const perSide = detail.match.players_per_side
   const name = (playerId: string) => player(playerId)?.display_name ?? 'Unknown player'
   const here = [...detail.checkIns].sort((a, b) => name(a.player_id).localeCompare(name(b.player_id)))
-  const onPitch = new Set(detail.lineup.map((p) => p.player_id))
+  // Players on the pitch, with their team: they keep it until the game ends.
+  const pitchTeam = new Map(detail.lineup.map((p) => [p.player_id, p.team]))
   const minutes = minutesTonight(detail.stints, detail.stintPlayers, now)
+  const strength = (playerId: string) => playerStrength(playerId, season, allTime)
   const count = (team: Team) => [...picks.values()].filter((t) => t === team).length
+  const averages = teamAverages(picks, strength)
+  const averageLine = TEAMS.flatMap((t) => {
+    const avg = averages[t]
+    return avg === null ? [] : [`${t} ${avg.toFixed(1)}`]
+  }).join(' · ')
+
+  function suggest() {
+    const teams = suggestTeams(
+      here
+        .filter((c) => c.left_at === null)
+        .map((c) => ({
+          id: c.player_id,
+          strength: strength(c.player_id),
+          minutes: minutes.get(c.player_id)?.played ?? 0,
+          arrivedAt: c.arrived_at,
+          locked: pitchTeam.get(c.player_id) ?? null,
+        })),
+      perSide,
+      group.min_extra_team_size,
+    )
+    const next = new Map<string, Team | null>(here.map((c) => [c.player_id, null]))
+    for (const t of TEAMS) for (const playerId of teams[t]) next.set(playerId, t)
+    setPicks(next)
+    setSuggested(true)
+  }
 
   async function save() {
     setBusy(true)
@@ -66,19 +102,33 @@ export default function Teams() {
         <Notice>Check at least 2 players in first, on the night page.</Notice>
       ) : (
         <>
-          <div className="sticky top-[calc(env(safe-area-inset-top)+4rem)] z-10 -mx-4 mb-2 flex items-center gap-3 bg-ground/95 px-4 py-2 backdrop-blur">
-            {TEAMS.map((t) => (
-              <span key={t} className="flex items-center gap-1.5 font-display text-lg">
-                <TeamTag team={t} /> {count(t)}
-              </span>
-            ))}
+          <Button variant="secondary" className="w-full" onClick={suggest}>
+            Suggest teams
+          </Button>
+          {suggested && (
+            <Notice>
+              Fair teams from the ratings
+              {pitchTeam.size > 0 && ', with the players on the pitch kept where they are'}. Change anything you like,
+              then tap Save teams.
+            </Notice>
+          )}
+
+          <div className="sticky top-[calc(env(safe-area-inset-top)+4rem)] z-10 -mx-4 mt-2 mb-2 bg-ground/95 px-4 py-2 backdrop-blur">
+            <div className="flex items-center gap-3">
+              {TEAMS.map((t) => (
+                <span key={t} className="flex items-center gap-1.5 font-display text-lg">
+                  <TeamTag team={t} /> {count(t)}
+                </span>
+              ))}
+            </div>
+            {averageLine && <p className="tabular mt-1 text-xs text-muted">Average rating · {averageLine}</p>}
           </div>
 
           <ul className="divide-y divide-line rounded-card border-[1.5px] border-line bg-paper">
             {here.map(({ player_id, left_at }) => {
               const pick = picks.get(player_id) ?? null
               const label = name(player_id)
-              const playing = onPitch.has(player_id)
+              const playing = pitchTeam.has(player_id)
               const locked = playing || left_at !== null
               const note = left_at
                 ? 'Left early'

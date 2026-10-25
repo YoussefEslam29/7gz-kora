@@ -6,17 +6,17 @@ import { useGroup } from '../state/group'
 
 /** How nights, money and ratings work. Only inside the signed-in app. */
 export default function HowItWorks() {
-  const { config } = useGroup()
+  const { config, group } = useGroup()
   return (
     <div className="space-y-4">
       <PageTitle sub="Nights, games, money and ratings, in plain words.">How it works</PageTitle>
-      <NightsExplainer />
+      <NightsExplainer extraTeam={group?.min_extra_team_size ?? 3} />
       {config && <RatingExplainer config={config} />}
     </div>
   )
 }
 
-function NightsExplainer() {
+function NightsExplainer({ extraTeam }: { extraTeam: number }) {
   return (
     <>
       <Card>
@@ -48,6 +48,12 @@ function NightsExplainer() {
           <li>
             Teams wear bibs: A white, B orange, C blue. With three teams, the <strong>winner stays on</strong> and the
             waiting team comes on. With two, they play again.
+          </li>
+          <li>
+            <strong>Suggest teams</strong> makes fair teams from everyone's ratings: this season's, then all-time, and
+            6.0 for someone new. With {extraTeam} or more players left over after two full teams, they make a third team;
+            fewer wait on the bench as subs, starting with whoever has played most. An admin can change anything before
+            saving.
           </li>
           <li>
             A draw with a team waiting: <strong>penalties</strong> decide who stays on. For ratings it's still a draw, and

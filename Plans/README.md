@@ -7,7 +7,7 @@ Everything agreed for the app lives in this folder. **Read every file before bui
 | # | File | What it covers | Status |
 |---|---|---|---|
 | 1 | `football-idea.md` | The original brief: ratings, voting, groups, PWA, Supabase | Phase 1 **built** (commit `6ce68a9`, 2026-10-23) |
-| 2 | `Football-scenario.md` | The match-night upgrade: nights, many short games, winner stays on, swaps, penalties, rent split, team suggester, rename to **7GZ-KORA** | Stages 1-2 **built** (`e40931d`, `880fe2e`); team suggester (stage 3) not built |
+| 2 | `Football-scenario.md` | The match-night upgrade: nights, many short games, winner stays on, swaps, penalties, rent split, team suggester, rename to **7GZ-KORA** | Stages 1-3 **built** (`e40931d`, `880fe2e`, and the team suggester on 2026-10-25) |
 | 3 | `Punishments-and-loyalty.md` | Punishments (late, absences, injuries, time-wasting), loyalty points, badges | Agreed 2026-10-24, not built (stage 4) |
 | 4 | `Extras-and-backlog.md` | Cancelled nights, waiting list, goalkeeper rotation, playing time, WhatsApp sharing, Team of the Night, best duos, **plus the backlog and rejected ideas** | Sections 1-5 **built** in stages 1-2; Team of the Night/Month, best duos and the results share not built (stage 5) |
 | 5 | `Install-first-access.md` | The website shows only an Install screen; sign-in only inside the installed app; the public sees just the name and logo | **Built** in stage 1 (`e40931d`); plus a public privacy page (`650c347`) |

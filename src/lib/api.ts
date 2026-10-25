@@ -4,8 +4,10 @@
 // which check permissions and return human-readable errors.
 import { supabase } from './supabase'
 import type {
+  BoardEntry,
   CancelReason,
   CheckIn,
+  Game,
   Goal,
   Group,
   LeaderboardRow,
@@ -27,6 +29,7 @@ import type {
   RsvpStatus,
   Stint,
   StintPlayer,
+  Team,
   Vote,
 } from './types'
 
@@ -80,11 +83,16 @@ export async function renamePlayer(playerId: string, name: string) {
   unwrap(await supabase.from('players').update({ display_name: name.trim() }).eq('id', playerId))
 }
 
+/** "Happy to play in goal": yourself, or anyone if you're an admin. */
+export async function setHappyInGoal(playerId: string, happy: boolean) {
+  unwrap(await supabase.from('players').update({ happy_in_goal: happy }).eq('id', playerId))
+}
+
 export async function getPlayers(groupId: string): Promise<Player[]> {
   const rows = unwrap<(Omit<Player, 'avatar_url'> & { profiles: { avatar_url: string | null } | null })[]>(
     await supabase
       .from('players')
-      .select('id, group_id, user_id, display_name, is_guest, profiles!players_user_id_fkey(avatar_url)')
+      .select('id, group_id, user_id, display_name, is_guest, happy_in_goal, profiles!players_user_id_fkey(avatar_url)')
       .eq('group_id', groupId)
       .order('display_name'),
   )
@@ -112,7 +120,7 @@ export async function listMatches(groupId: string): Promise<MatchSummary[]> {
     await supabase
       .from('matches')
       .select(
-        '*, goals(scoring_team, disputed), match_ratings(player_id, rating, is_mvp), match_players!match_players_match_id_fkey(player_id), rsvps(player_id, status, status_changed_at, waiting_since, promoted_at)',
+        '*, games!games_match_id_fkey(*), goals(game_id, scoring_team, disputed), match_ratings(player_id, rating, is_mvp), match_players!match_players_match_id_fkey(player_id), rsvps(player_id, status, status_changed_at, waiting_since, promoted_at)',
       )
       .eq('group_id', groupId)
       .order('played_at', { ascending: false })
@@ -121,24 +129,31 @@ export async function listMatches(groupId: string): Promise<MatchSummary[]> {
 }
 
 export async function getMatch(matchId: string): Promise<MatchDetail> {
-  const [match, stints, stintPlayers, players, rsvps, goals, ratings, votes, mvpVotes] = await Promise.all([
+  const [match, games, stints, stintPlayers, players, rsvps, goals, ratings, votes, mvpVotes] = await Promise.all([
     supabase.from('matches').select('*').eq('id', matchId).single(),
-    supabase.from('stints').select('id, ordinal, weight').eq('match_id', matchId).order('ordinal'),
+    supabase.from('games').select('*').eq('match_id', matchId).order('ordinal'),
+    supabase.from('stints').select('id, game_id, ordinal, started_at, ended_at').eq('match_id', matchId).order('ordinal'),
     supabase.from('stint_players').select('stint_id, player_id, team, is_goalkeeper').eq('match_id', matchId),
-    supabase.from('match_players').select('player_id, arrived_at, left_at').eq('match_id', matchId).order('arrived_at'),
+    supabase.from('match_players').select('player_id, arrived_at, left_at, team').eq('match_id', matchId).order('arrived_at'),
     supabase.from('rsvps').select('player_id, status, status_changed_at, waiting_since, promoted_at').eq('match_id', matchId),
     supabase.from('goals').select('*').eq('match_id', matchId).order('created_at'),
     supabase.from('match_ratings').select('*').eq('match_id', matchId),
     supabase.from('ratings_votes').select('voter_id, target_id, score, didnt_see').eq('match_id', matchId),
     supabase.from('mvp_votes').select('voter_id, target_id').eq('match_id', matchId),
   ])
+  const gameList = unwrap<Game[]>(games)
   const stintList = unwrap<Stint[]>(stints)
-  const current = stintList[stintList.length - 1]
+  const lineups = unwrap<StintPlayer[]>(stintPlayers)
+  // The lineup period still going (only while a game is on).
+  const current = stintList.find((s) => s.ended_at === null)
   const checkIns = unwrap<CheckIn[]>(players)
   return {
     match: unwrap<Match>(match),
+    games: gameList,
+    runningGame: gameList.find((g) => g.ended_at === null) ?? null,
     stints: stintList,
-    lineup: unwrap<StintPlayer[]>(stintPlayers).filter((sp) => sp.stint_id === current?.id),
+    stintPlayers: lineups,
+    lineup: current ? lineups.filter((sp) => sp.stint_id === current.id) : [],
     playerIds: checkIns.map((c) => c.player_id),
     checkIns,
     rsvps: unwrap<Rsvp[]>(rsvps),
@@ -184,8 +199,29 @@ export const endNight = (matchId: string) => rpc('end_night', { p_match_id: matc
 export const cancelNight = (matchId: string, reason: CancelReason, note: string, fee: number) =>
   rpc('cancel_night', { p_match_id: matchId, p_reason: reason, p_note: note, p_fee: fee })
 
-export const saveLineup = (matchId: string, lineup: LineupEntry[]) =>
-  rpc('save_lineup', { p_match_id: matchId, p_lineup: lineup })
+// ---------------------------------------------------------------------------
+// Games at the pitch (admins)
+// ---------------------------------------------------------------------------
+export const setTeamBoard = (matchId: string, board: BoardEntry[]) =>
+  rpc('set_team_board', { p_match_id: matchId, p_board: board })
+
+/** Returns the new game's id. */
+export const startGame = (matchId: string, teamOne: Team, teamTwo: Team, keeperOne: string | null, keeperTwo: string | null) =>
+  rpc<string>('start_game', {
+    p_match_id: matchId,
+    p_team_one: teamOne,
+    p_team_two: teamTwo,
+    p_keeper_one: keeperOne,
+    p_keeper_two: keeperTwo,
+  })
+
+/** The whole new pitch. cont = "Swap and continue"; otherwise "End game and swap". Returns the game now on. */
+export const swapPlayers = (matchId: string, lineup: LineupEntry[], cont: boolean) =>
+  rpc<string>('swap_players', { p_match_id: matchId, p_lineup: lineup, p_continue: cont })
+
+/** "Game over". penaltyWinner: who won a shootout after a draw (or null). */
+export const endGame = (matchId: string, penaltyWinner: Team | null) =>
+  rpc('end_game', { p_match_id: matchId, p_penalty_winner: penaltyWinner })
 
 export const deleteMatch = (matchId: string) => rpc('delete_match', { p_match_id: matchId })
 export const extendVoting = (matchId: string, hours: number) =>
@@ -205,8 +241,9 @@ export const unmarkPaid = (matchId: string, playerId: string) =>
 // ---------------------------------------------------------------------------
 // Goals
 // ---------------------------------------------------------------------------
-export const logGoal = (matchId: string, scorerId: string, assisterId: string | null) =>
-  rpc<string>('log_goal', { p_match_id: matchId, p_scorer_id: scorerId, p_assister_id: assisterId })
+/** Admins only. gameId = null: the game on now; otherwise an earlier game (a forgotten goal). */
+export const logGoal = (matchId: string, scorerId: string, assisterId: string | null, gameId: string | null = null) =>
+  rpc<string>('log_goal', { p_match_id: matchId, p_scorer_id: scorerId, p_assister_id: assisterId, p_game_id: gameId })
 
 export const editGoal = (goalId: string, scorerId: string, assisterId: string | null) =>
   rpc('edit_goal', { p_goal_id: goalId, p_scorer_id: scorerId, p_assister_id: assisterId })

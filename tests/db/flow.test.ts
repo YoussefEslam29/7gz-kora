@@ -2,7 +2,7 @@
 // acting as real signed-in users, the same way the app calls them.
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createDb, createUser, nightDetails, rpc, selectAs, setupGroup, startNight } from './helpers'
+import { createDb, createUser, nightDetails, rpc, selectAs, setupGroup, startGame, startNight } from './helpers'
 
 let db: PGlite
 
@@ -90,6 +90,22 @@ describe('groups and invite codes', () => {
       selectAs(db, users.Omar, `update group_members set role = 'admin' where group_id = $1`, [groupId]),
       /permission denied/,
     )
+    await expectError(
+      selectAs(db, users.Omar,
+        `insert into games (match_id, ordinal, team_one, team_two, planned_minutes) values (gen_random_uuid(), 1, 'A', 'B', 10)`),
+      /permission denied/,
+    )
+  })
+
+  it('signed-out visitors can read nothing, including games', async () => {
+    for (const table of ['matches', 'players', 'games']) {
+      await db.exec('set role anon')
+      try {
+        await expectError(db.query(`select * from public.${table}`), /permission denied/)
+      } finally {
+        await db.exec('reset role')
+      }
+    }
   })
 })
 
@@ -99,36 +115,33 @@ describe('a full night: plan, check in, goals, voting, results', () => {
     const [captain, omar, ziad, mo] = [users.admin, users.Omar, users.Ziad, users['محمد']]
 
     // Only admins plan and run nights.
-    const lineup = [
-      { player_id: pid(captain), team: 'A', is_goalkeeper: false },
-      { player_id: pid(omar), team: 'A', is_goalkeeper: true },
-      { player_id: pid(ziad), team: 'B', is_goalkeeper: false },
-      { player_id: pid(mo), team: 'B', is_goalkeeper: true },
-    ]
     await expectError(
       rpc(db, omar, 'plan_night', { p_group_id: groupId, p_night: nightDetails() }),
       /Only group admins/,
     )
     const matchId = await startNight(db, captain, groupId, [captain, omar, ziad, mo].map(pid))
-    await rpc(db, captain, 'save_lineup', { p_match_id: matchId, p_lineup: lineup })
+    await startGame(
+      db, captain, matchId,
+      { [pid(captain)]: 'A', [pid(omar)]: 'A', [pid(ziad)]: 'B', [pid(mo)]: 'B' },
+      ['A', 'B'], [pid(omar), pid(mo)],
+    )
 
-    // A member logs "I scored", assisted by the captain; the assister confirms.
-    const [{ log_goal: goal1 }] = await rpc<{ log_goal: string }>(db, omar, 'log_goal', {
-      p_match_id: matchId, p_scorer_id: pid(omar), p_assister_id: pid(captain),
-    })
-    await expectError(rpc(db, omar, 'confirm_goal', { p_goal_id: goal1 }), /other player involved/)
-    await rpc(db, captain, 'confirm_goal', { p_goal_id: goal1 })
+    // Only admins log goals. Omar scores, assisted by the captain.
+    await expectError(
+      rpc(db, omar, 'log_goal', { p_match_id: matchId, p_scorer_id: pid(omar), p_assister_id: null }),
+      /Only group admins/,
+    )
+    const logGoal = (scorer: string, assister: string | null) =>
+      rpc<{ log_goal: string }>(db, captain, 'log_goal', {
+        p_match_id: matchId, p_scorer_id: pid(scorer), p_assister_id: assister && pid(assister),
+      })
+    await logGoal(omar, captain)
 
     // Cross-team assists are rejected.
-    await expectError(
-      rpc(db, ziad, 'log_goal', { p_match_id: matchId, p_scorer_id: pid(ziad), p_assister_id: pid(captain) }),
-      /scorer's team/,
-    )
+    await expectError(logGoal(ziad, captain), /scorer's team/)
     // Ziad scores twice, one is disputed by Omar (so it will not count).
-    await rpc(db, ziad, 'log_goal', { p_match_id: matchId, p_scorer_id: pid(ziad), p_assister_id: null })
-    const [{ log_goal: goal3 }] = await rpc<{ log_goal: string }>(db, ziad, 'log_goal', {
-      p_match_id: matchId, p_scorer_id: pid(ziad), p_assister_id: pid(mo),
-    })
+    await logGoal(ziad, null)
+    const [{ log_goal: goal3 }] = await logGoal(ziad, mo)
     await rpc(db, omar, 'dispute_goal', { p_goal_id: goal3 })
 
     // Voting is not open yet; members cannot finish the match.
@@ -200,7 +213,7 @@ describe('a full night: plan, check in, goals, voting, results', () => {
     const goals = await selectAs<{ confirmed: boolean; disputed: boolean }>(
       db, omar, `select confirmed, disputed from goals where match_id = $1`, [matchId],
     )
-    expect(goals.filter((g) => g.confirmed)).toHaveLength(2) // undisputed goals auto-confirm
+    expect(goals.filter((g) => g.confirmed)).toHaveLength(2) // admins' goals count as confirmed; the disputed one doesn't
     expect(goals.filter((g) => g.disputed)).toHaveLength(1)
 
     const ratings = await selectAs<{ player_id: string; rating: string; goals: number; is_mvp: boolean; stats_only: boolean }>(
@@ -233,9 +246,12 @@ describe('a full night: plan, check in, goals, voting, results', () => {
     expect(fixed.find((x) => x.player_id === pid(ziad))!.goals).toBe(2)
     expect(fixed.find((x) => x.player_id === pid(mo))!.assists).toBe(1)
 
-    // Members cannot delete goals once voting is closed; the lineup is final.
-    await expectError(rpc(db, ziad, 'delete_goal', { p_goal_id: goal3 }), /Voting is closed/)
-    await expectError(rpc(db, captain, 'save_lineup', { p_match_id: matchId, p_lineup: lineup }), /night is final/)
+    // Members cannot delete goals; teams and games are final.
+    await expectError(rpc(db, ziad, 'delete_goal', { p_goal_id: goal3 }), /Only an admin or the person/)
+    await expectError(
+      rpc(db, captain, 'set_team_board', { p_match_id: matchId, p_board: [] }),
+      /teams and games are final/,
+    )
 
     // Every edit left a trail.
     const audit = await selectAs<{ action: string }>(
@@ -246,53 +262,15 @@ describe('a full night: plan, check in, goals, voting, results', () => {
     )
   })
 
-  it('lineup edits: one goalkeeper per team, scorers stay, late arrivals check in first', async () => {
-    const { groupId, users, pid } = await setupGroup(db)
-    const matchId = await startNight(db, users.admin, groupId, [pid(users.admin), pid(users.Omar), pid(users.Ziad)])
-    const lineup = [
-      { player_id: pid(users.admin), team: 'A', is_goalkeeper: true },
-      { player_id: pid(users.Omar), team: 'A', is_goalkeeper: true },
-      { player_id: pid(users.Ziad), team: 'B', is_goalkeeper: false },
-    ]
-    await expectError(
-      rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: lineup }),
-      /one goalkeeper per team/,
-    )
-    lineup[1].is_goalkeeper = false
-    await rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: lineup })
-    await rpc(db, users.Ziad, 'log_goal', { p_match_id: matchId, p_scorer_id: pid(users.Ziad), p_assister_id: null })
-    await expectError(
-      rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: lineup.slice(0, 2) }),
-      /Ziad scored or assisted/,
-    )
-
-    // A late arrival is checked in, then joins team B.
-    const late = [...lineup, { player_id: pid(users['محمد']), team: 'B', is_goalkeeper: false }]
-    await expectError(
-      rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: late }),
-      /Check in محمد first/,
-    )
-    await rpc(db, users.admin, 'check_in', { p_match_id: matchId, p_player_id: pid(users['محمد']) })
-    await rpc(db, users.admin, 'save_lineup', { p_match_id: matchId, p_lineup: late })
-    const players = await selectAs(db, users.Omar, `select * from match_players where match_id = $1`, [matchId])
-    expect(players).toHaveLength(4)
-  })
-
-  it('the person who logged a goal can undo it while the night is on', async () => {
+  it('admins can undo a goal; members cannot delete goals', async () => {
     const { groupId, users, pid } = await setupGroup(db)
     const matchId = await startNight(db, users.admin, groupId, [pid(users.Omar), pid(users.Ziad)])
-    await rpc(db, users.admin, 'save_lineup', {
-      p_match_id: matchId,
-      p_lineup: [
-        { player_id: pid(users.Omar), team: 'A' },
-        { player_id: pid(users.Ziad), team: 'B' },
-      ],
-    })
-    const [{ log_goal: goalId }] = await rpc<{ log_goal: string }>(db, users.Omar, 'log_goal', {
+    await startGame(db, users.admin, matchId, { [pid(users.Omar)]: 'A', [pid(users.Ziad)]: 'B' })
+    const [{ log_goal: goalId }] = await rpc<{ log_goal: string }>(db, users.admin, 'log_goal', {
       p_match_id: matchId, p_scorer_id: pid(users.Omar), p_assister_id: null,
     })
-    await expectError(rpc(db, users.Ziad, 'delete_goal', { p_goal_id: goalId }), /Only an admin or the person/)
-    await rpc(db, users.Omar, 'delete_goal', { p_goal_id: goalId })
+    await expectError(rpc(db, users.Omar, 'delete_goal', { p_goal_id: goalId }), /Only an admin or the person/)
+    await rpc(db, users.admin, 'delete_goal', { p_goal_id: goalId })
     expect(await selectAs(db, users.Omar, `select * from goals where match_id = $1`, [matchId])).toHaveLength(0)
   })
 })

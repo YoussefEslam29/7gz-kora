@@ -1,8 +1,7 @@
 // Shapes of the rows the app reads from Supabase (see supabase/migrations).
 
-export type Team = 'A' | 'B'
-/** Bib colours. Team C (blue) plays once games arrive in stage 2. */
-export type Bib = Team | 'C'
+/** Teams wear bib colours: A white (no bibs), B orange, C blue. */
+export type Team = 'A' | 'B' | 'C'
 export type Role = 'admin' | 'member'
 /** draft = a planned night. A night is a row in matches; only the screens say "night". */
 export type MatchStatus = 'draft' | 'playing' | 'voting' | 'closed' | 'cancelled'
@@ -27,6 +26,8 @@ export interface Player {
   user_id: string | null
   display_name: string
   is_guest: boolean
+  /** Suggested first when a game needs a goalkeeper. */
+  happy_in_goal: boolean
   avatar_url: string | null
 }
 
@@ -52,7 +53,8 @@ export interface RatingPoints {
   loss: number
   clean_sheet: number
   clean_sheet_cap: number
-  clean_sheet_min_share: number
+  /** A clean sheet needs a whole game in goal lasting at least this long. */
+  clean_sheet_min_minutes: number
   save: number
   save_cap: number
   analytics_min: number
@@ -109,6 +111,8 @@ export interface CheckIn {
   player_id: string
   arrived_at: string
   left_at: string | null
+  /** The team board: the team they're on now. null = on the bench. */
+  team: Team | null
 }
 
 /** What plan_night / update_night take (see supabase/migrations/*_nights.sql). */
@@ -156,10 +160,30 @@ export interface MoneyOwed {
   collector_player_id: string | null
 }
 
+/** One short game of a night (see supabase/migrations/*_games.sql). */
+export interface Game {
+  id: string
+  match_id: string
+  ordinal: number
+  team_one: Team
+  team_two: Team
+  /** The timer's guide: it buzzes, but an admin ends the game. */
+  planned_minutes: number
+  started_at: string
+  /** null while the game is on. */
+  ended_at: string | null
+  /** A draw with a team waiting: who won the shootout. It only decides who stays on. */
+  penalty_winner: Team | null
+}
+
+/** A lineup period of a game (a "stint" in the database). Minutes come from the times. */
 export interface Stint {
   id: string
+  game_id: string
   ordinal: number
-  weight: number
+  started_at: string
+  /** null while it's still going. */
+  ended_at: string | null
 }
 
 export interface StintPlayer {
@@ -172,6 +196,7 @@ export interface StintPlayer {
 export interface Goal {
   id: string
   match_id: string
+  game_id: string
   stint_id: string
   scoring_team: Team
   scorer_id: string
@@ -194,16 +219,19 @@ export interface MvpVote {
   target_id: string
 }
 
-/** Every component of a match rating, as stored by compute_match_ratings. */
+/** Every component of a night's rating, as stored by compute_match_ratings. */
 export interface Breakdown {
   base: number
   goals: number
   assists: number
   net_goals: number
+  /** Goal difference while on the pitch, added up over the night. */
   net_goal_diff: number
   result: number
   clean_sheets: number
   saves: number
+  /** Minutes on the pitch. Missing on nights rated before games existed. */
+  minutes?: number
   analytics: number
   vote_average: number | null
   vote_count: number
@@ -230,6 +258,8 @@ export interface MatchRating {
   saves: number
   mvp_votes: number
   is_mvp: boolean
+  minutes_played: number
+  minutes_in_goal: number
   breakdown: Breakdown
 }
 
@@ -245,21 +275,31 @@ export interface LeaderboardRow {
   clean_sheets: number
   avg_votes: number | null
   qualified: boolean
+  /** Average minutes on the pitch per night. */
+  avg_minutes: number
+  /** All minutes in goal. */
+  minutes_in_goal: number
 }
 
-/** A match in a list, with just enough to show the score. */
+/** A night in a list, with its games and enough to show their scores. */
 export interface MatchSummary extends Match {
-  goals: { scoring_team: Team; disputed: boolean }[]
+  games: Game[]
+  goals: Pick<Goal, 'game_id' | 'scoring_team' | 'disputed'>[]
   match_ratings: { player_id: string; rating: number; is_mvp: boolean }[]
   match_players: { player_id: string }[]
   rsvps: Rsvp[]
 }
 
-/** Everything the match page needs. */
+/** Everything the night page needs. */
 export interface MatchDetail {
   match: Match
+  games: Game[]
+  /** The game in progress, if any. */
+  runningGame: Game | null
   stints: Stint[]
-  /** Lineup of the current (latest) stint. */
+  /** Who was on the pitch in every lineup period. */
+  stintPlayers: StintPlayer[]
+  /** Who is on the pitch right now (empty between games). */
   lineup: StintPlayer[]
   /** Everyone checked in. */
   playerIds: string[]
@@ -271,8 +311,16 @@ export interface MatchDetail {
   mvpVotes: MvpVote[]
 }
 
+/** One player on the pitch, as swap_players takes it. */
 export interface LineupEntry {
   player_id: string
   team: Team
   is_goalkeeper: boolean
+}
+
+/** One row of the team board, as set_team_board takes it. */
+export interface BoardEntry {
+  player_id: string
+  /** null = on the bench. */
+  team: Team | null
 }

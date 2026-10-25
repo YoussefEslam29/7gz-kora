@@ -25,18 +25,21 @@ It is a PWA (a website that installs like an app). In a browser the website show
 
 ## 1. What's built so far
 
-**Phase 1** (`Plans/football-idea.md`) and **stage 1 of the 7GZ-KORA upgrade** (`Plans/README.md`):
+**Phase 1** (`Plans/football-idea.md`) and **stages 1 and 2 of the 7GZ-KORA upgrade** (`Plans/README.md`):
 
 - The 7GZ-KORA look (`Design/README.md`), light and dark mode; Arabic names display correctly
 - **Install first:** in a browser the website shows only the Install screen: the logo, the name, the steps for that phone, and the invite code when opened from an invite link. Sign-in happens inside the installed app. Search engines are kept out, and link previews show only the name and logo.
 - Google sign-in (plus an optional email-code sign-in), groups, invite codes, admins and members
 - **Nights:** an admin plans a night (date, time, pitch, length, cost, players per side, collector, player limit), pre-filled from the last one. Friends tap **I'm in** or **Out**. When the night is full, "I'm in" joins a waiting list, and the first person waiting moves up automatically when someone drops out. A planned night can be shared to WhatsApp.
-- **At the pitch:** the admin starts the night and checks people in (anyone in the group; the arrival time is saved; tap again when someone leaves early), picks Team A and Team B from the people checked in, and goals are logged as before.
+- **At the pitch:** the admin starts the night and checks people in (anyone in the group; the arrival time is saved; tap again when someone leaves early), then puts everyone on the **team board**: Team A, B or C (white, orange and blue bibs) or the bench.
+- **Games:** many short games in a night, each with a timer (10 minutes by default) that buzzes but never ends the game. The app suggests the next game (the winner stays on, the waiting team comes on) and a goalkeeper for each team (whoever is happy in goal, then whoever has had the fewest minutes in goal). **Swap and continue** keeps the score; **End game and swap** starts a new game at 0–0. A draw with a team waiting asks who won on penalties, which is still a draw for ratings. The bench shows everyone's minutes and suggests who comes on next.
+- **Only admins log goals**; players can dispute a goal. An admin can add a forgotten goal to any game of the night.
+- **One rating per night** from all its games (see section 6).
 - **End night** opens voting. **Cancel night** (rain, not enough players, pitch problem, other) means nothing counts; a cancellation can be shared to WhatsApp.
 - **Money card:** the cost is split equally among everyone checked in, rounded up to a whole pound ("You owe 47 EGP to Ahmed"). The collector or an admin ticks people off.
 - Voting (1–10, "Didn't see", Man of the Match), ratings with a full breakdown, the season table and player profiles, as in Phase 1.
 
-**Coming next** (`Plans/README.md`): games (many short games per night, a timer, Team C, swaps, penalties, admin-only goal recording, one rating per night across all games), the team suggester, punishments and loyalty points, Team of the Night and best duos.
+**Coming next** (`Plans/README.md`): the team suggester, punishments and loyalty points, Team of the Night and best duos.
 
 ---
 
@@ -63,8 +66,10 @@ You'll create two free accounts (Supabase and Vercel) and set up Google sign-in.
 
 1. In your Supabase project, open **SQL Editor** (left menu), then **New query**.
 2. Open `supabase/migrations/20261023000100_schema.sql` from this folder, copy all of it, paste it into the editor and click **Run**. You should see "Success".
-3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`. **Order matters.**
+3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`, then `20261025000100_games.sql`. **Order matters.**
 4. (Optional, for trying things out) Run `supabase/seed.sql` too. See [Demo data](#demo-data).
+
+> **Already ran the first four files?** Then run only `20261025000100_games.sql`, once, at a time when no night is in progress. Each of your existing nights becomes one game, and their ratings stay as they are. Do it before the new version of the app goes live on Vercel (or right when it does): the new app needs it.
 
 ### Step 4: Connect the app to Supabase (environment variables)
 
@@ -189,13 +194,13 @@ Each player gets one rating per night, from 0 to 10, shown with one decimal:
 rating = 65% × stats score + 35% × average peer vote
 ```
 
-**Stats score:** start at 5.0, then add +1.0 per goal (max +3.5), +0.7 per assist (max +2.0), +0.25 per goal of difference while you were on the pitch (between −1.5 and +1.5), +0.5 for a win or −0.5 for a loss, and +0.5 for a goalkeeper clean sheet (max +1.0). The total stays between 1.0 and 10.0.
+**Stats score**, worked out over all the night's games: start at 5.0, then add +1.0 per goal (max +3.5) and +0.7 per assist (max +2.0). **Team impact:** +0.25 for each goal of difference while you were on the pitch, added up over the night (between −1.5 and +1.5). **Result:** your team's result in each game you played (+0.5 win, 0 draw, −0.5 loss), averaged over your minutes on the pitch. **Clean sheet:** +0.5 for each whole game in goal of at least 8 minutes without conceding (max +1.0). A draw decided on penalties is still a draw. The total stays between 1.0 and 10.0.
 
 **Peer votes:** the average of the 1–10 scores you received. "Didn't see" doesn't count. With fewer than 2 votes, the rating is the stats score alone ("stats only").
 
-**Season rating** is the average of your match ratings in the calendar year. You join the table after 3 rated matches. Man of the Match is a separate honour and doesn't change ratings.
+**Season rating** is the average of your night ratings in the calendar year. You join the table after 3 rated nights. Man of the Match is a separate honour and doesn't change ratings.
 
-The calculation lives in **one place**: the database function `compute_match_ratings` in `supabase/migrations/20261023000200_rating.sql`. It runs when voting closes, and again automatically if an admin fixes a goal afterwards. Every match page shows each player's full breakdown.
+The calculation lives in **one place**: the database function `compute_match_ratings`, now in `supabase/migrations/20261025000100_games.sql` (it replaced the first version in file 2). It runs when voting closes, and again automatically if an admin fixes a goal afterwards. Every match page shows each player's full breakdown.
 
 ### Tuning the numbers (no code needed)
 
@@ -209,11 +214,9 @@ After 3–4 real matches, check whether the ratings feel fair. To change them fo
 | `voting_hours` | 24 | How long voting stays open |
 | `points` | see below | All point values, as JSON |
 
-`points` holds: `base` 5.0, `goal` 1.0, `goal_cap` 3.5, `assist` 0.7, `assist_cap` 2.0, `net_goal` 0.25, `net_goal_min` −1.5, `net_goal_max` 1.5, `win` 0.5, `draw` 0, `loss` −0.5, `clean_sheet` 0.5, `clean_sheet_cap` 1.0, `clean_sheet_min_share` 0.25, `save` 0.15, `save_cap` 1.0, `analytics_min` 1.0, `analytics_max` 10.0.
+`points` holds: `base` 5.0, `goal` 1.0, `goal_cap` 3.5, `assist` 0.7, `assist_cap` 2.0, `net_goal` 0.25, `net_goal_min` −1.5, `net_goal_max` 1.5, `win` 0.5, `draw` 0, `loss` −0.5, `clean_sheet` 0.5, `clean_sheet_cap` 1.0, `clean_sheet_min_minutes` 8, `save` 0.15, `save_cap` 1.0, `analytics_min` 1.0, `analytics_max` 10.0.
 
 New values apply to matches whose voting closes from then on. Matches that are already finished keep their ratings. To change the defaults for *new* groups, edit `rating_points_defaults()` and the column defaults in the rating SQL file.
-
-Stage 2 changes how team impact and result are counted across the many games of a night (see `Plans/Football-scenario.md` section 3).
 
 ---
 
@@ -224,14 +227,14 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 1. **Ratings are calculated in the database**, not in the app, so nobody can fake a rating from their phone and nothing extra needs hosting.
 2. **Voting closes on its own** the next time anyone opens the app after the 24 hours. No server timer is needed. Until someone opens it, the match just stays in "voting".
 3. **Unconfirmed goals still count**; only *disputed* goals don't, until an admin confirms, edits or deletes them.
-4. **Players can still log goals while voting is open**, to catch up on ones they forgot. After voting closes, only admins can change goals, and ratings recalculate automatically.
+4. **Only admins log goals** (since stage 2). Players dispute a wrong goal. An admin can add a forgotten goal to any game of the night, even after voting closes; the ratings then recalculate.
 5. **Voting needs a choice for every player** (a score or "Didn't see") plus a Man of the Match pick before you can save. It's about 30 seconds, and it keeps averages fair.
 6. **The table's 3-night rule applies to the Rating sort.** Goals, assists and the other stat sorts include everyone.
 7. **The demo group's first joiner becomes its admin.** In general, a group with no admins gives admin to the next person who joins.
 8. **The All-time tab is included now**, as section 0 of the brief asked.
 9. **Own goals aren't supported yet.** For now, log the goal for the team it counted for and pick "No assist", or ask me to add an "own goal" option.
-10. **The lineup is locked once voting closes.** Reopening voting is a later admin tool.
-11. **Teams wear bib colours:** A white, B orange, C blue (Team C arrives with games in stage 2).
+10. **Teams and games are locked once the night ends.** An admin can still fix goals.
+11. **Teams wear bib colours:** A white, B orange, C blue.
 12. **Paid ticks are kept in their own small table** (`night_payments`), because on a night cancelled before anyone arrived, the people who pay never got checked in.
 13. **The share is worked out in the database** (`night_payer_rows`), like ratings, so every phone shows the same number.
 14. **Replies close when the night starts.** Check-in stays open while voting is open, to add someone who was forgotten; the shares then recalculate and ticks stay.
@@ -240,6 +243,18 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 17. **A cancelled night can't be un-cancelled**: plan a new one. The reason "Other" needs a short note.
 18. **Link-preview bots** (WhatsApp, Facebook, Telegram, X) may read the site so shared links show the name and logo; search engines are kept out.
 19. **"No reply"** counts group members with an account (the people who can answer).
+20. **Goalkeepers are picked for each game**, not kept on the team board: the app suggests a new keeper every game.
+21. **"End game and swap" starts the next game straight away**, between the same two teams with the new players.
+22. **After a draw with no penalty winner** while a team is waiting, the suggested next game sends off the team that was already on.
+23. **While a game is on, players on the pitch can only be moved with Swap.** The team board still changes the waiting team and the bench.
+24. **Someone on the pitch must be swapped off before you tap "Left"**; leaving puts them on the bench.
+25. **The timer buzzes once** (a vibration, and a beep where the phone allows) when the game reaches its length, and turns red. It never ends the game.
+26. **Penalties can only be entered after a draw**, and the app asks only when another team is waiting.
+27. **Nights from before games** became one game each, lasting the whole booking. Their stored ratings didn't change.
+28. **"Fewest minutes in goal this season"** counts nights whose voting has closed.
+29. **Profiles show** your average minutes on the pitch per night and your minutes in goal.
+30. **Home and the Nights list show how many games** a night had, instead of one score.
+31. **The "extra team from N players" setting** comes with the team suggester in stage 3, where it's used.
 
 ---
 
@@ -247,7 +262,7 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 
 ### Demo data
 
-`supabase/seed.sql` creates a group called **Demo FC** with 12 fake players (one with an Arabic name), 4 finished nights (one from last year), a night cancelled for rain, yesterday's night with voting open and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money. Run it in the SQL Editor after the **four** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
+`supabase/seed.sql` creates a group called **Demo FC** with 15 fake players (one with an Arabic name) and nights with several games each: 4 finished nights (one from last year; last week's has three teams, a draw won on penalties, a mid-game swap and a late arrival), a night cancelled for rain, yesterday's night with voting open (with an "End game and swap") and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money; Ali and Mahmoud are happy in goal. Run it in the SQL Editor after the **five** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
 
 Ideally use a separate free Supabase project for testing. To remove the demo group later, run this in the SQL Editor:
 
@@ -261,20 +276,22 @@ delete from public.groups where name = 'Demo FC';
 npm test
 ```
 
-This runs 69 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
+This runs 111 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
 
-- `tests/db/rating.test.ts`: the two worked examples from the brief (Player A 8.3, Player B 5.6), plus a player with no votes, a goalkeeper clean sheet, a player present for only one of two stints, a match with no goals, all the caps and limits, saves, disputed goals, Man of the Match ties, and custom weights
+- `tests/db/rating.test.ts`: the two worked examples from the brief (Player A 8.3, Player B 5.6), the five night examples from `Plans/Football-scenario.md` (winner stays on, swap and continue, a late arrival, clean sheets, penalties), "End game and swap", a night with no goals, a player who never got on the pitch, a goalkeeper swapped mid-game, the team-impact fix, and the caps, saves, disputed goals, Man of the Match ties and custom weights
+- `tests/db/games.test.ts`: the team board, starting games with goalkeepers, admin-only goals, Game over and penalties, both kinds of swap, subs, adding a forgotten goal, and security
+- `tests/db/migrate.test.ts`: nights from before games moving over, exactly as on the live project
 - `tests/db/nights.test.ts`: planning a night, "I'm in" / "Out" and the waiting list, check-in, ending and cancelling a night, and the money split, including the worked example 600 EGP ÷ 13 players → 47 EGP each
 - `tests/db/flow.test.ts`: groups, invite codes, permissions, a full night from planning to results, secret votes, auto-closing, and admin fixes after closing
 - `tests/db/seed.test.ts`: the demo data loads correctly
-- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts and formatting
+- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts, formatting, and the game helpers (next game, minutes, goalkeeper and sub suggestions, the clock)
 
 Other commands: `npm run build` (production build), `npm run lint`, `npm run icons` (rebuild the app icons after changing `public/app-icon.svg`).
 
 ### Project layout
 
 ```
-supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4)
+supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4), games + night ratings (5)
 supabase/seed.sql      Demo data
 src/lib/               Every call the app makes to Supabase (api.ts), plus small tested helpers
 src/pages/             One file per screen
@@ -311,7 +328,8 @@ Things to know:
 | After Google sign-in you land on the wrong address, or nothing happens | Check **Supabase → Authentication → URL Configuration**: the Site URL and Redirect URLs must include your exact app address. |
 | Friends see "access blocked" or are told the app is in testing | Publish the consent screen (Step 6e). |
 | "Email address not authorized" when asking for a code | Custom SMTP isn't set up yet (section 4, part 1). |
-| "permission denied" or "function ... does not exist" errors | One of the four SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
+| "permission denied" or "function ... does not exist" errors | One of the five SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
+| "function public.start_game ... does not exist", or the team board and Swap don't work | `20261025000100_games.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
 | A friend can't see the group | They need to join with the invite code (More → Invite code). |
 | The website only shows the Install screen | That's on purpose: sign in from the installed app. For development on a computer, add `VITE_ALLOW_BROWSER=true` to `.env.local`. |
 | The Vercel build fails with "VITE_ALLOW_BROWSER must never be set on Vercel" | Remove that variable from the project's Environment Variables and redeploy. |

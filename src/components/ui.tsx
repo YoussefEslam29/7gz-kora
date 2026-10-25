@@ -4,7 +4,7 @@ import { useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { initials, ratingTone } from '../lib/format'
 import { shareText } from '../lib/share'
-import type { Bib, MatchStatus } from '../lib/types'
+import type { MatchStatus, Team } from '../lib/types'
 
 type Variant = 'primary' | 'secondary' | 'black' | 'dark' | 'danger' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
@@ -170,7 +170,7 @@ export function Avatar({ name, url, size = 36 }: { name: string; url?: string | 
 }
 
 /** A team in its bib colour (A white, B orange, C blue). Always says "Team X", never colour alone. */
-export function TeamTag({ team }: { team: Bib }) {
+export function TeamTag({ team }: { team: Team }) {
   return <span className={`chip team-${team.toLowerCase()}`}>Team {team}</span>
 }
 

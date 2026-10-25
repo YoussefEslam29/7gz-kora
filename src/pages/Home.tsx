@@ -5,7 +5,8 @@ import { Scoreboard } from '../components/match'
 import { RsvpCard } from '../components/rsvp'
 import { Card, Empty, ErrorNote, Heading, LinkButton, Loading, Name, RatingBadge, StatusChip } from '../components/ui'
 import * as api from '../lib/api'
-import { formatDay, scoreOf, timeLeft } from '../lib/format'
+import { formatDay, timeLeft } from '../lib/format'
+import { gameScore } from '../lib/games'
 import type { MatchSummary, MoneyOwed } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
@@ -68,9 +69,9 @@ export default function Home() {
         <Link to={`/nights/${last.id}`} className="block">
           <Card>
             <Heading>Last night · {formatDay(last.played_at)}</Heading>
-            <div className="my-3">
-              <Scoreboard score={scoreOf(last.goals)} />
-            </div>
+            <p className="my-2 font-display text-[22px] leading-tight">
+              {last.games.length} game{last.games.length === 1 ? '' : 's'}
+            </p>
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="flex min-w-0 items-center gap-1.5">
                 <StarIcon size={18} className="shrink-0 text-gold" />
@@ -136,7 +137,9 @@ export default function Home() {
   )
 }
 
+/** Tonight: the game being played (score) or "between games". */
 function LiveNight({ night }: { night: MatchSummary }) {
+  const game = night.games.find((g) => g.ended_at === null)
   return (
     <Card strong>
       <div className="flex items-center justify-between gap-2">
@@ -146,7 +149,16 @@ function LiveNight({ night }: { night: MatchSummary }) {
         <StatusChip status="playing" />
       </div>
       <div className="my-3">
-        <Scoreboard score={scoreOf(night.goals)} />
+        {game ? (
+          <>
+            <p className="label mb-1">Game {game.ordinal}</p>
+            <Scoreboard teams={[game.team_one, game.team_two]} score={gameScore(game, night.goals)} />
+          </>
+        ) : (
+          <p className="font-display text-[22px] leading-tight">
+            {night.games.length === 0 ? 'Getting ready' : `Between games · ${night.games.length} played`}
+          </p>
+        )}
       </div>
       <LinkButton to={`/nights/${night.id}`} className="w-full">
         Open night

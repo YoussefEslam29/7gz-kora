@@ -18,6 +18,7 @@ import PlayerProfile from './pages/PlayerProfile'
 import Recorder from './pages/Recorder'
 import Settings from './pages/Settings'
 import SignIn from './pages/SignIn'
+import Swap from './pages/Swap'
 import Teams from './pages/Teams'
 import Vote from './pages/Vote'
 import { AuthProvider, useAuth } from './state/auth'
@@ -88,6 +89,7 @@ function GroupGate() {
         <Route path="nights/:id" element={<NightPage />} />
         <Route path="nights/:id/edit" element={<PlanNight />} />
         <Route path="nights/:id/teams" element={<Teams />} />
+        <Route path="nights/:id/swap" element={<Swap />} />
         <Route path="nights/:id/record" element={<Recorder />} />
         <Route path="nights/:id/vote" element={<Vote />} />
         <Route path="table" element={<Leaderboard />} />

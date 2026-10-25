@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatLength, formatNightWhen, nightFacts, ratingTone } from './format'
+import { formatClock, formatLength, formatMinutes, formatNightWhen, nightFacts, ratingTone } from './format'
 import { toStartsAt } from './night'
 
 describe('night formatting', () => {
@@ -22,5 +22,15 @@ describe('night formatting', () => {
   })
   it('rating badge colour bands', () => {
     expect([8.4, 7.6, 6.5, 5.8].map(ratingTone)).toEqual(['r-top', 'r-good', 'r-ok', 'r-low'])
+  })
+})
+
+describe('game formatting', () => {
+  it('formats the game clock and minutes', () => {
+    expect(formatClock(462)).toBe('07:42')
+    expect(formatClock(3725)).toBe('1:02:05')
+    expect(formatClock(-3)).toBe('00:00')
+    expect(formatMinutes(37.6)).toBe('38 min')
+    expect(formatMinutes(0)).toBe('0 min')
   })
 })

@@ -50,7 +50,7 @@ type Choice = number | 'didnt_see'
 function VoteForm({ detail }: { detail: MatchDetail }) {
   const navigate = useNavigate()
   const { myPlayerId, playerName } = useCurrentGroup()
-  const { match, lineup, playerIds, votes, mvpVotes } = detail
+  const { match, checkIns, playerIds, votes, mvpVotes } = detail
 
   // Before voting closes you only receive your own votes, so pre-fill them.
   const [choices, setChoices] = useState<Map<string, Choice>>(
@@ -60,7 +60,8 @@ function VoteForm({ detail }: { detail: MatchDetail }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const teamOf = (pid: string) => lineup.find((p) => p.player_id === pid)?.team
+  // The team each player ended the night on (the team board).
+  const teamOf = (pid: string) => checkIns.find((c) => c.player_id === pid)?.team ?? undefined
   const myTeam = teamOf(myPlayerId)
   // Teammates first, then opponents, then anyone who left early.
   const targets = playerIds

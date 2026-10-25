@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import { ChevronIcon, PlusIcon, StarIcon } from '../components/icons'
 import { Empty, ErrorNote, LinkButton, Loading, Name, PageTitle, RatingBadge, StatusChip } from '../components/ui'
 import * as api from '../lib/api'
-import { CANCEL_REASONS, clockOf, formatDay, parseDay, scoreOf } from '../lib/format'
+import { CANCEL_REASONS, clockOf, formatDay, parseDay } from '../lib/format'
 import type { MatchSummary } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
@@ -39,8 +39,7 @@ export default function Nights() {
           <h2 className="label mb-2">{month}</h2>
           <ul className="divide-y-[1.5px] divide-line overflow-hidden rounded-card border-[1.5px] border-line bg-paper">
             {list.map((m) => {
-              const score = scoreOf(m.goals)
-              const showScore = m.status === 'playing' || m.status === 'voting' || m.status === 'closed'
+              const showGames = m.status === 'playing' || m.status === 'voting' || m.status === 'closed'
               const mine = m.match_ratings.find((r) => r.player_id === myPlayerId)
               return (
                 <li key={m.id}>
@@ -61,9 +60,9 @@ export default function Nights() {
                         </span>
                       </p>
                     </div>
-                    {showScore && (
-                      <span className="tabular font-display text-2xl whitespace-nowrap">
-                        {score.A} – {score.B}
+                    {showGames && (
+                      <span className="text-sm whitespace-nowrap text-muted">
+                        {m.games.length} game{m.games.length === 1 ? '' : 's'}
                       </span>
                     )}
                     {mine && (

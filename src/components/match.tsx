@@ -1,34 +1,40 @@
-// Pieces shared by the match screens.
+// Pieces shared by the night screens: the scoreboard, lineups, the player
+// grid and the goal list.
 import { useState } from 'react'
 import * as api from '../lib/api'
 import { errorMessage } from '../lib/format'
+import { TEAMS } from '../lib/games'
 import type { Goal, MatchDetail, StintPlayer, Team } from '../lib/types'
 import { useAuth } from '../state/auth'
 import { useGroup } from '../state/group'
 import { CheckIcon, FlagIcon, GloveIcon } from './icons'
 import { Button, ErrorNote, Name, TeamTag } from './ui'
 
+/** Bib colours as Tailwind classes (spelled out so Tailwind keeps them). */
+const BIB: Record<Team, string> = { A: 'bg-team-a', B: 'bg-team-b', C: 'bg-team-c' }
+
 /** Team chips on top, the score below (Design/README.md, Scoreboard). */
-export function Scoreboard({ score }: { score: Record<Team, number> }) {
+export function Scoreboard({ teams, score }: { teams: [Team, Team]; score: [number, number] }) {
   return (
-    <div aria-label={`Team A ${score.A}, Team B ${score.B}`}>
+    <div aria-label={`Team ${teams[0]} ${score[0]}, Team ${teams[1]} ${score[1]}`}>
       <div className="flex items-center justify-between">
-        <TeamTag team="A" />
-        <TeamTag team="B" />
+        <TeamTag team={teams[0]} />
+        <TeamTag team={teams[1]} />
       </div>
       <p className="tabular mt-0.5 text-center font-display text-[64px] leading-none whitespace-nowrap">
-        {score.A} – {score.B}
+        {score[0]} – {score[1]}
       </p>
     </div>
   )
 }
 
-/** Two columns with each team's players. */
+/** One column per team in the lineup. */
 export function Lineups({ lineup }: { lineup: StintPlayer[] }) {
   const { playerName } = useGroup()
+  const teams = TEAMS.filter((t) => lineup.some((p) => p.team === t))
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {(['A', 'B'] as const).map((team) => (
+    <div className={`grid gap-3 ${teams.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      {teams.map((team) => (
         <div key={team}>
           <div className="mb-1.5">
             <TeamTag team={team} />
@@ -63,7 +69,7 @@ export function PlayerGrid({
   exclude?: string
 }) {
   const { playerName } = useGroup()
-  const teams = only ? [only] : (['A', 'B'] as const)
+  const teams = only ? [only] : TEAMS.filter((t) => lineup.some((p) => p.team === t))
   return (
     <div className="space-y-4">
       {teams.map((team) => (
@@ -79,9 +85,7 @@ export function PlayerGrid({
                   key={p.player_id}
                   type="button"
                   onClick={() => onPick(p.player_id)}
-                  className={`press min-h-14 rounded-xl border-2 border-[#0b0b0b] px-2 py-2 text-left font-semibold text-[#0b0b0b] ${
-                    team === 'A' ? 'bg-team-a' : 'bg-team-b'
-                  }`}
+                  className={`press min-h-14 rounded-xl border-2 border-[#0b0b0b] px-2 py-2 text-left font-semibold text-[#0b0b0b] ${BIB[team]}`}
                 >
                   <Name className="line-clamp-2">{playerName(p.player_id)}</Name>
                 </button>
@@ -93,15 +97,15 @@ export function PlayerGrid({
   )
 }
 
-/** The list of goals, with confirm / dispute / delete where allowed. */
+/** The night's goals, game by game, with confirm / dispute / edit / delete where allowed. */
 export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: () => void }) {
   const { user } = useAuth()
   const { playerName, myPlayerId, isAdmin } = useGroup()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Admin edit: which goal, and the new scorer once picked.
-  const [editing, setEditing] = useState<{ goalId: string; scorerId?: string } | null>(null)
-  const { match, goals, playerIds, lineup } = detail
+  const [editing, setEditing] = useState<{ goal: Goal; scorerId?: string } | null>(null)
+  const { match, goals, games, playerIds, stintPlayers } = detail
   const open = match.status !== 'closed'
   const iPlayed = myPlayerId != null && playerIds.includes(myPlayerId)
 
@@ -121,43 +125,41 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
   if (goals.length === 0) return <p className="text-sm text-muted">No goals yet.</p>
 
   if (editing) {
-    const scorerTeam = lineup.find((p) => p.player_id === editing.scorerId)?.team
+    // Who was on the pitch when the goal went in.
+    const period = stintPlayers.filter((sp) => sp.stint_id === editing.goal.stint_id)
+    const goalId = editing.goal.id
+    const scorerId = editing.scorerId
+    const scorerTeam = period.find((p) => p.player_id === scorerId)?.team
     return (
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-semibold">{editing.scorerId ? 'Who assisted?' : 'Who scored?'}</p>
+          <p className="font-semibold">{scorerId ? 'Who assisted?' : 'Who scored?'}</p>
           <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
             Cancel
           </Button>
         </div>
         <ErrorNote message={error} />
-        {editing.scorerId && scorerTeam ? (
+        {scorerId && scorerTeam ? (
           <>
             <Button
               className="mb-4 w-full"
               variant="secondary"
-              busy={busy === editing.goalId}
-              onClick={() =>
-                run(editing.goalId, () => api.editGoal(editing.goalId, editing.scorerId!, null)).then(() =>
-                  setEditing(null),
-                )
-              }
+              busy={busy === goalId}
+              onClick={() => run(goalId, () => api.editGoal(goalId, scorerId, null)).then(() => setEditing(null))}
             >
               No assist
             </Button>
             <PlayerGrid
-              lineup={lineup}
+              lineup={period}
               only={scorerTeam}
-              exclude={editing.scorerId}
+              exclude={scorerId}
               onPick={(assisterId) =>
-                run(editing.goalId, () => api.editGoal(editing.goalId, editing.scorerId!, assisterId)).then(() =>
-                  setEditing(null),
-                )
+                run(goalId, () => api.editGoal(goalId, scorerId, assisterId)).then(() => setEditing(null))
               }
             />
           </>
         ) : (
-          <PlayerGrid lineup={lineup} onPick={(scorerId) => setEditing({ ...editing, scorerId })} />
+          <PlayerGrid lineup={period} onPick={(id) => setEditing({ ...editing, scorerId: id })} />
         )}
       </div>
     )
@@ -166,90 +168,97 @@ export function GoalList({ detail, onChange }: { detail: MatchDetail; onChange: 
   return (
     <>
       <ErrorNote message={error} />
-      <ul className="divide-y divide-line">
-        {goals.map((g: Goal) => {
-          const loggedByMe = g.created_by === user?.id
-          const involved = myPlayerId === g.scorer_id || myPlayerId === g.assister_id
-          const canConfirm = !g.confirmed && (isAdmin || (involved && !loggedByMe && !g.disputed))
-          const canDispute = open && !g.disputed && (isAdmin || iPlayed)
-          const canDelete = isAdmin || (open && loggedByMe)
-          return (
-            <li key={g.id} className={`py-3 ${g.disputed ? 'opacity-70' : ''}`}>
-              <div className="flex items-start gap-2">
-                <span className={`chip team-${g.scoring_team.toLowerCase()} mt-0.5 shrink-0 px-2`} aria-label={`Team ${g.scoring_team}`}>
-                  {g.scoring_team}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className={`font-semibold ${g.disputed ? 'line-through' : ''}`}>
-                    <Name>{playerName(g.scorer_id)}</Name>
-                  </p>
-                  <p className="text-sm text-muted">
-                    {g.assister_id ? (
-                      <>
-                        Assist: <Name>{playerName(g.assister_id)}</Name>
-                      </>
-                    ) : (
-                      'No assist'
-                    )}
-                    {' · '}
-                    {g.disputed ? (
-                      <span className="font-semibold text-danger">Disputed: doesn't count until an admin fixes it</span>
-                    ) : g.confirmed ? (
-                      <span className="text-brand-ink">Confirmed</span>
-                    ) : (
-                      'Not confirmed yet'
-                    )}
-                  </p>
-                </div>
-              </div>
-              {(canConfirm || canDispute || canDelete || isAdmin) && (
-                <div className="mt-2 flex flex-wrap gap-2 pl-10">
-                  {canConfirm && (
-                    <Button size="sm" busy={busy === g.id} onClick={() => run(g.id, () => api.confirmGoal(g.id))}>
-                      <CheckIcon size={16} /> Confirm
-                    </Button>
-                  )}
-                  {canDispute && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy === g.id}
-                      onClick={() => {
-                        if (window.confirm('Dispute this goal? It will not count until an admin fixes it.'))
-                          void run(g.id, () => api.disputeGoal(g.id))
-                      }}
-                    >
-                      <FlagIcon size={16} /> Dispute
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy === g.id}
-                      onClick={() => setEditing({ goalId: g.id })}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={busy === g.id}
-                      onClick={() => {
-                        if (window.confirm('Delete this goal?')) void run(g.id, () => api.deleteGoal(g.id))
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+      {games
+        .filter((game) => goals.some((g) => g.game_id === game.id))
+        .map((game) => (
+          <div key={game.id} className="mt-3 first:mt-1">
+            <p className="label">Game {game.ordinal}</p>
+            <ul className="divide-y divide-line">
+              {goals
+                .filter((g) => g.game_id === game.id)
+                .map((g) => {
+                  const loggedByMe = g.created_by === user?.id
+                  const involved = myPlayerId === g.scorer_id || myPlayerId === g.assister_id
+                  const canConfirm = !g.confirmed && (isAdmin || (involved && !loggedByMe && !g.disputed))
+                  const canDispute = open && !g.disputed && (isAdmin || iPlayed)
+                  const canDelete = isAdmin || (open && loggedByMe)
+                  return (
+                    <li key={g.id} className={`py-3 ${g.disputed ? 'opacity-70' : ''}`}>
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`chip team-${g.scoring_team.toLowerCase()} mt-0.5 shrink-0 px-2`}
+                          aria-label={`Team ${g.scoring_team}`}
+                        >
+                          {g.scoring_team}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`font-semibold ${g.disputed ? 'line-through' : ''}`}>
+                            <Name>{playerName(g.scorer_id)}</Name>
+                          </p>
+                          <p className="text-sm text-muted">
+                            {g.assister_id ? (
+                              <>
+                                Assist: <Name>{playerName(g.assister_id)}</Name>
+                              </>
+                            ) : (
+                              'No assist'
+                            )}
+                            {' · '}
+                            {g.disputed ? (
+                              <span className="font-semibold text-danger">Disputed: doesn't count until an admin fixes it</span>
+                            ) : g.confirmed ? (
+                              <span className="text-brand-ink">Confirmed</span>
+                            ) : (
+                              'Not confirmed yet'
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      {(canConfirm || canDispute || canDelete || isAdmin) && (
+                        <div className="mt-2 flex flex-wrap gap-2 pl-10">
+                          {canConfirm && (
+                            <Button size="sm" busy={busy === g.id} onClick={() => run(g.id, () => api.confirmGoal(g.id))}>
+                              <CheckIcon size={16} /> Confirm
+                            </Button>
+                          )}
+                          {canDispute && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={busy === g.id}
+                              onClick={() => {
+                                if (window.confirm('Dispute this goal? It will not count until an admin fixes it.'))
+                                  void run(g.id, () => api.disputeGoal(g.id))
+                              }}
+                            >
+                              <FlagIcon size={16} /> Dispute
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button size="sm" variant="secondary" disabled={busy === g.id} onClick={() => setEditing({ goal: g })}>
+                              Edit
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              disabled={busy === g.id}
+                              onClick={() => {
+                                if (window.confirm('Delete this goal?')) void run(g.id, () => api.deleteGoal(g.id))
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+            </ul>
+          </div>
+        ))}
     </>
   )
 }

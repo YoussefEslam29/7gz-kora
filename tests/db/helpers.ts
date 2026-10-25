@@ -26,16 +26,29 @@ const SUPABASE_STUB = `
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;
   grant execute on function auth.uid() to anon, authenticated, service_role;
+  -- Like Supabase: new tables and functions are open to everyone unless revoked.
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 `
 
-export async function createDb(): Promise<PGlite> {
+/**
+ * A fresh database with the migrations applied. `before` stops at the first
+ * file whose name sorts at or after it (to test moving old data over).
+ */
+export async function createDb(options: { before?: string } = {}): Promise<PGlite> {
   const db = new PGlite()
   await db.exec(SUPABASE_STUB)
-  const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()
+  await runMigrations(db, (file) => !options.before || file < options.before)
+  return db
+}
+
+/** Runs the migration files that `include` picks, in order. */
+export async function runMigrations(db: PGlite, include: (file: string) => boolean) {
+  const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql') && include(f)).sort()
   for (const file of files) {
     await db.exec(readFileSync(join(migrationsDir, file), 'utf8'))
   }
-  return db
 }
 
 export async function runSqlFile(db: PGlite, relativePath: string) {
@@ -92,15 +105,24 @@ export async function selectAs<T = Record<string, unknown>>(
 // ---------------------------------------------------------------------------
 // Direct fixtures for rating tests (as the database owner, bypassing RLS)
 // ---------------------------------------------------------------------------
-export type Lineup = { A: string[]; B: string[]; gk?: string[] }
+export type Team = 'A' | 'B' | 'C'
+/** Who is on the pitch in a lineup period, by team, and who is in goal. */
+export type Lineup = Partial<Record<Team, string[]>> & { gk?: string[] }
 
+/**
+ * Builds a night for rating tests: games, lineup periods lasting exact
+ * minutes (on a clock starting at 20:00), goals, saves and votes.
+ */
 export class MatchBuilder {
   players = new Map<string, string>()
-  stints: string[] = []
+  /** Lineup period ids, in order. */
+  periods: string[] = []
   groupId = ''
   matchId = ''
-  private lineups = new Map<string, Map<string, 'A' | 'B'>>()
   private db: PGlite
+  private clock = Date.parse('2026-10-29T18:00:00Z')
+  private gameId = ''
+  private teams = new Map<string, Map<string, Team>>()
 
   constructor(db: PGlite) {
     this.db = db
@@ -132,47 +154,76 @@ export class MatchBuilder {
     return id
   }
 
-  async stint(weight: number, lineup: Lineup): Promise<string> {
-    const s = await this.db.query<{ id: string }>(
-      `insert into stints (match_id, ordinal, weight) values ($1, $2, $3) returning id`,
-      [this.matchId, this.stints.length + 1, weight],
+  /** Starts a new game between two teams. penaltyWinner: who won a shootout after a draw. */
+  async game(teamOne: Team, teamTwo: Team, penaltyWinner: Team | null = null): Promise<string> {
+    const at = new Date(this.clock).toISOString()
+    const g = await this.db.query<{ id: string }>(
+      `insert into games (match_id, ordinal, team_one, team_two, planned_minutes, started_at, ended_at, penalty_winner)
+       values ($1, (select count(*) + 1 from games where match_id = $1), $2, $3, 10, $4, $4, $5) returning id`,
+      [this.matchId, teamOne, teamTwo, at, penaltyWinner],
     )
-    const stintId = s.rows[0].id
-    this.stints.push(stintId)
-    const teams = new Map<string, 'A' | 'B'>()
-    for (const team of ['A', 'B'] as const) {
-      for (const name of lineup[team]) {
+    this.gameId = g.rows[0].id
+    return this.gameId
+  }
+
+  /** A lineup period of the current game lasting `minutes`. The clock moves on. */
+  async period(minutes: number, lineup: Lineup): Promise<string> {
+    if (!this.gameId) throw new Error('Start a game first')
+    const start = new Date(this.clock).toISOString()
+    this.clock += minutes * 60_000
+    const end = new Date(this.clock).toISOString()
+    const s = await this.db.query<{ id: string }>(
+      `insert into stints (match_id, game_id, ordinal, started_at, ended_at) values ($1, $2, $3, $4, $5) returning id`,
+      [this.matchId, this.gameId, this.periods.length + 1, start, end],
+    )
+    await this.db.query(`update games set ended_at = $2 where id = $1`, [this.gameId, end])
+    const periodId = s.rows[0].id
+    this.periods.push(periodId)
+    const teams = new Map<string, Team>()
+    for (const team of ['A', 'B', 'C'] as const) {
+      for (const name of lineup[team] ?? []) {
         teams.set(name, team)
-        await this.db.query(
-          `insert into match_players (match_id, player_id) values ($1, $2) on conflict do nothing`,
-          [this.matchId, this.id(name)],
-        )
+        await this.checkIn(name)
         await this.db.query(
           `insert into stint_players (stint_id, match_id, player_id, team, is_goalkeeper) values ($1, $2, $3, $4, $5)`,
-          [stintId, this.matchId, this.id(name), team, (lineup.gk ?? []).includes(name)],
+          [periodId, this.matchId, this.id(name), team, (lineup.gk ?? []).includes(name)],
         )
       }
     }
-    this.lineups.set(stintId, teams)
-    return stintId
+    this.teams.set(periodId, teams)
+    return periodId
   }
 
-  /** Logs a goal in the given stint (default: the last one). */
-  async goal(scorer: string, assister: string | null = null, opts: { stint?: string; disputed?: boolean } = {}) {
-    const stintId = opts.stint ?? this.stints[this.stints.length - 1]
-    const team = this.lineups.get(stintId)?.get(scorer)
-    if (!team) throw new Error(`${scorer} is not in that stint`)
+  /** A Phase 1 style match: one game of A v B with one lineup period (60 minutes). */
+  async match(lineup: Lineup, minutes = 60): Promise<string> {
+    await this.game('A', 'B')
+    return this.period(minutes, lineup)
+  }
+
+  /** Checked in for the night (a sub may never get on the pitch). */
+  async checkIn(name: string) {
     await this.db.query(
-      `insert into goals (match_id, stint_id, scoring_team, scorer_id, assister_id, disputed)
-       values ($1, $2, $3, $4, $5, $6)`,
-      [this.matchId, stintId, team, this.id(scorer), assister ? this.id(assister) : null, opts.disputed ?? false],
+      `insert into match_players (match_id, player_id) values ($1, $2) on conflict do nothing`,
+      [this.matchId, this.id(name)],
+    )
+  }
+
+  /** Logs a goal in the given lineup period (default: the last one). */
+  async goal(scorer: string, assister: string | null = null, opts: { period?: string; disputed?: boolean } = {}) {
+    const periodId = opts.period ?? this.periods[this.periods.length - 1]
+    const team = this.teams.get(periodId)?.get(scorer)
+    if (!team) throw new Error(`${scorer} is not in that lineup period`)
+    await this.db.query(
+      `insert into goals (match_id, game_id, stint_id, scoring_team, scorer_id, assister_id, disputed)
+       values ($1, (select game_id from stints where id = $2), $2, $3, $4, $5, $6)`,
+      [this.matchId, periodId, team, this.id(scorer), assister ? this.id(assister) : null, opts.disputed ?? false],
     )
   }
 
   async save(goalkeeper: string) {
     await this.db.query(
       `insert into saves (match_id, stint_id, goalkeeper_id) values ($1, $2, $3)`,
-      [this.matchId, this.stints[this.stints.length - 1], this.id(goalkeeper)],
+      [this.matchId, this.periods[this.periods.length - 1], this.id(goalkeeper)],
     )
   }
 
@@ -201,7 +252,8 @@ export class MatchBuilder {
     const res = await this.db.query<RatingRow>(
       `select player_id, analytics_score::float8 as analytics, vote_average::float8 as vote_average,
               vote_count, stats_only, final_rating::float8 as final, rating::float8 as rating,
-              goals, assists, clean_sheets, saves, mvp_votes, is_mvp, breakdown
+              goals, assists, clean_sheets, saves, mvp_votes, is_mvp,
+              minutes_played::float8 as minutes_played, minutes_in_goal::float8 as minutes_in_goal, breakdown
        from match_ratings where match_id = $1`,
       [this.matchId],
     )
@@ -228,6 +280,8 @@ export type RatingRow = {
   saves: number
   mvp_votes: number
   is_mvp: boolean
+  minutes_played: number
+  minutes_in_goal: number
   breakdown: Record<string, number | boolean | null>
 }
 
@@ -290,4 +344,30 @@ export async function startNight(
     await rpc(db, admin, 'check_in', { p_match_id: matchId, p_player_id: playerId })
   }
   return matchId
+}
+
+/**
+ * Puts players on the team board ({ player id: team, or null for the bench })
+ * and starts a game between two teams. Returns the game's id.
+ */
+export async function startGame(
+  db: PGlite,
+  admin: string,
+  matchId: string,
+  board: Record<string, Team | null>,
+  teams: [Team, Team] = ['A', 'B'],
+  keepers: [string | null, string | null] = [null, null],
+): Promise<string> {
+  await rpc(db, admin, 'set_team_board', {
+    p_match_id: matchId,
+    p_board: Object.entries(board).map(([player_id, team]) => ({ player_id, team })),
+  })
+  const [{ start_game: gameId }] = await rpc<{ start_game: string }>(db, admin, 'start_game', {
+    p_match_id: matchId,
+    p_team_one: teams[0],
+    p_team_two: teams[1],
+    p_keeper_one: keepers[0],
+    p_keeper_two: keepers[1],
+  })
+  return gameId
 }

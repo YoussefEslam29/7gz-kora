@@ -1,25 +1,32 @@
 import { useState } from 'react'
 import { useParams } from 'react-router'
+import { PlayingTime, WaitingAndBench } from '../components/bench'
 import { CancelledNotice, CancelNightForm } from '../components/cancel'
 import { CheckInList, WhoIsHere } from '../components/checkin'
-import { BallIcon } from '../components/icons'
-import { GoalList, Lineups, Scoreboard } from '../components/match'
+import { GameCard, GamesList } from '../components/games'
+import { GoalList } from '../components/match'
 import { MoneyCard } from '../components/money'
+import { NextGameCard } from '../components/nextgame'
 import { Results, VotingCard } from '../components/results'
 import { RsvpCard, RsvpLists } from '../components/rsvp'
 import { Button, Card, ErrorNote, Heading, LinkButton, Loading, ShareButton, StatusChip } from '../components/ui'
 import * as api from '../lib/api'
-import { errorMessage, formatNightWhen, nightFacts, scoreOf } from '../lib/format'
+import { errorMessage, formatNightWhen, nightFacts } from '../lib/format'
 import { plannedNightText } from '../lib/share'
-import type { Payer } from '../lib/types'
+import type { LeaderboardRow, Payer } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
 
-/** One page for a night in every state: planned, live, voting, final or cancelled. */
+/**
+ * One page for a night in every state: planned, live, voting, final or
+ * cancelled. While it's live, admins get the control room (the game card,
+ * the next game, the bench, the team board and check-in) on one scrolling
+ * screen; everyone else sees the score, the clock and who's on.
+ */
 export default function NightPage() {
   const { id = '' } = useParams()
-  const { myPlayerId, isAdmin, refresh } = useCurrentGroup()
-  const [pollMs, setPollMs] = useState<number | undefined>(20_000)
+  const { group, myPlayerId, isAdmin, refresh } = useCurrentGroup()
+  const [pollMs, setPollMs] = useState<number | undefined>(10_000)
   const [cancelling, setCancelling] = useState(false)
   const [fixingCheckIns, setFixingCheckIns] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
@@ -28,25 +35,28 @@ export default function NightPage() {
     async () => {
       const detail = await api.getMatch(id)
       const s = detail.match.status
-      const [voteStatus, payers] = await Promise.all([
+      const [voteStatus, payers, season] = await Promise.all([
         s === 'voting' ? api.getVoteStatus(id) : Promise.resolve([]),
         s === 'voting' || s === 'closed' || s === 'cancelled' ? api.getNightMoney(id) : Promise.resolve<Payer[]>([]),
+        // Minutes in goal this season, for the goalkeeper suggestion.
+        s === 'playing' && isAdmin
+          ? api.getLeaderboard(group.id, new Date().getFullYear())
+          : Promise.resolve<LeaderboardRow[]>([]),
       ])
-      // Keep refreshing until the night is final.
-      setPollMs(s === 'closed' || s === 'cancelled' ? undefined : 20_000)
-      return { detail, voteStatus, payers }
+      // A live night refreshes every 10 seconds; a final one doesn't need to.
+      setPollMs(s === 'playing' ? 10_000 : s === 'closed' || s === 'cancelled' ? undefined : 20_000)
+      return { detail, voteStatus, payers, seasonInGoal: new Map(season.map((r) => [r.player_id, r.minutes_in_goal])) }
     },
-    [id],
+    [id, isAdmin, group.id],
     pollMs,
   )
 
   if (loading && !data) return <Loading />
   if (!data) return <ErrorNote message={error} onRetry={reload} />
 
-  const { detail, voteStatus, payers } = data
-  const { match, lineup, goals, playerIds } = detail
+  const { detail, voteStatus, payers, seasonInGoal } = data
+  const { match, playerIds } = detail
   const status = match.status
-  const inLineup = lineup.some((p) => p.player_id === myPlayerId)
   const hasGames = status === 'playing' || status === 'voting' || status === 'closed'
 
   function changed() {
@@ -112,32 +122,38 @@ export default function NightPage() {
 
       {status === 'playing' && (
         <>
-          <Card strong>
-            <Scoreboard score={scoreOf(goals)} />
-          </Card>
-          {(isAdmin || inLineup) && (
-            <LinkButton to={`/nights/${id}/record`} size="lg" className="w-full">
-              <BallIcon size={26} /> Goal
-            </LinkButton>
+          {detail.runningGame ? (
+            <GameCard key={detail.runningGame.id} detail={detail} onChange={reload} />
+          ) : isAdmin ? (
+            <NextGameCard key={detail.games.length} detail={detail} seasonInGoal={seasonInGoal} onChange={reload} />
+          ) : (
+            <Card strong>
+              <Heading>Between games</Heading>
+              <p className="mt-1 font-display text-[22px] leading-tight">Game {detail.games.length + 1} starts soon</p>
+            </Card>
           )}
+          <WaitingAndBench detail={detail} />
           {isAdmin && (
             <div className="flex gap-2">
               <LinkButton to={`/nights/${id}/teams`} variant="secondary" className="flex-1">
-                Teams
+                Team board
               </LinkButton>
               <Button
                 variant="dark"
                 className="flex-1"
                 busy={busy === 'end'}
                 onClick={() =>
-                  void act('end', () => api.endNight(id), 'End the night? Voting opens for everyone checked in, and the money card appears.')
+                  void act(
+                    'end',
+                    () => api.endNight(id),
+                    'End the night? A game still on ends now. Voting opens for everyone checked in, and the money card appears.',
+                  )
                 }
               >
                 End night
               </Button>
             </div>
           )}
-          {isAdmin ? <CheckInList detail={detail} onChange={changed} /> : <WhoIsHere detail={detail} />}
         </>
       )}
 
@@ -150,22 +166,16 @@ export default function NightPage() {
 
       {hasGames && (
         <>
-          {status !== 'playing' && (
-            <Card>
-              <Heading className="mb-2">Score</Heading>
-              <Scoreboard score={scoreOf(goals)} />
-            </Card>
-          )}
-          <Card>
-            <Heading className="mb-2">Teams</Heading>
-            {lineup.length > 0 ? <Lineups lineup={lineup} /> : <p className="text-sm text-muted">No teams picked yet.</p>}
-          </Card>
+          <GamesList detail={detail} />
+          <PlayingTime detail={detail} />
           <Card>
             <Heading className="mb-1">Goals</Heading>
             <GoalList detail={detail} onChange={reload} />
           </Card>
         </>
       )}
+
+      {status === 'playing' && (isAdmin ? <CheckInList detail={detail} onChange={changed} /> : <WhoIsHere detail={detail} />)}
 
       {isAdmin &&
         status === 'voting' &&

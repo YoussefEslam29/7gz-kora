@@ -9,7 +9,7 @@ export default function HowItWorks() {
   const { config } = useGroup()
   return (
     <div className="space-y-4">
-      <PageTitle sub="Nights, money and ratings, in plain words.">How it works</PageTitle>
+      <PageTitle sub="Nights, games, money and ratings, in plain words.">How it works</PageTitle>
       <NightsExplainer />
       {config && <RatingExplainer config={config} />}
     </div>
@@ -34,6 +34,35 @@ function NightsExplainer() {
           </li>
           <li>
             When the admin taps <strong>End night</strong>, voting opens and the money card appears.
+          </li>
+        </ul>
+      </Card>
+
+      <Card>
+        <Heading className="mb-2">Games</Heading>
+        <ul className="list-disc space-y-1 pl-5 text-sm">
+          <li>
+            A night has many short games, usually 10 minutes each. The timer buzzes when time is up, but an admin ends each
+            game with <strong>Game over</strong>.
+          </li>
+          <li>
+            Teams wear bibs: A white, B orange, C blue. With three teams, the <strong>winner stays on</strong> and the
+            waiting team comes on. With two, they play again.
+          </li>
+          <li>
+            A draw with a team waiting: <strong>penalties</strong> decide who stays on. For ratings it's still a draw, and
+            penalty goals don't count.
+          </li>
+          <li>
+            To balance the teams an admin can <strong>swap players</strong>: "Swap and continue" keeps the score, "End game
+            and swap" starts a new game at 0–0.
+          </li>
+          <li>
+            The app suggests who goes in goal (players happy in goal first, then whoever has had the fewest minutes in goal)
+            and which sub comes on (the one who has played least).
+          </li>
+          <li>
+            Only admins record goals. If one is wrong, tap <strong>Dispute</strong>: it doesn't count until an admin fixes it.
           </li>
         </ul>
       </Card>
@@ -71,12 +100,15 @@ function RatingExplainer({ config }: { config: RatingConfig }) {
     ['Each goal', `${pts(p.goal)} (max ${pts(p.goal_cap)})`],
     ['Each assist', `${pts(p.assist)} (max ${pts(p.assist_cap)})`],
     [
-      'Team impact: per goal of difference while you were on the pitch',
+      'Team impact: per goal of difference while you were on the pitch, added up over the night',
       `${pts(p.net_goal)} (between ${pts(p.net_goal_min)} and ${pts(p.net_goal_max)})`,
     ],
-    ['Result', `win ${pts(p.win)} · draw ${pts(p.draw)} · loss ${pts(p.loss)}`],
     [
-      `Goalkeeper clean sheet (in goal for at least ${pct(p.clean_sheet_min_share ?? 0.25)} of the night)`,
+      "Result: your team's result in each game you played, averaged over your minutes",
+      `win ${pts(p.win)} · draw ${pts(p.draw)} · loss ${pts(p.loss)}`,
+    ],
+    [
+      `Goalkeeper clean sheet (in goal for a whole game of at least ${p.clean_sheet_min_minutes ?? 8} minutes, nothing conceded)`,
       `${pts(p.clean_sheet)} (max ${pts(p.clean_sheet_cap)})`,
     ],
   ]

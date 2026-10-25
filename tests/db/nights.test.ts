@@ -5,7 +5,7 @@
 // Plans/Extras-and-backlog.md.
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createDb, createUser, nightDetails, rpc, selectAs, setupGroup, startNight } from './helpers'
+import { createDb, createUser, nightDetails, rpc, selectAs, setupGroup, startGame, startNight } from './helpers'
 
 let db: PGlite
 
@@ -215,10 +215,7 @@ describe('at the pitch: start and check-in', () => {
   it('a check-in made by mistake can be undone, unless they already scored', async () => {
     const { groupId, users, pid } = await setupGroup(db)
     const id = await startNight(db, users.admin, groupId, [pid(users.Omar), pid(users.Ziad), pid(users['محمد'])])
-    await rpc(db, users.admin, 'save_lineup', {
-      p_match_id: id,
-      p_lineup: [{ player_id: pid(users.Omar), team: 'A' }, { player_id: pid(users.Ziad), team: 'B' }],
-    })
+    await startGame(db, users.admin, id, { [pid(users.Omar)]: 'A', [pid(users.Ziad)]: 'B' })
     await rpc(db, users.admin, 'log_goal', { p_match_id: id, p_scorer_id: pid(users.Ziad), p_assister_id: null })
     await expectError(
       rpc(db, users.admin, 'undo_check_in', { p_match_id: id, p_player_id: pid(users.Ziad) }),
@@ -231,21 +228,22 @@ describe('at the pitch: start and check-in', () => {
   it('teams are picked from the players checked in; the rest are on the bench', async () => {
     const { groupId, users, pid } = await setupGroup(db)
     const id = await planNight(users.admin, groupId)
-    const lineup = [{ player_id: pid(users.Omar), team: 'A' }, { player_id: pid(users.Ziad), team: 'B' }]
-    await expectError(rpc(db, users.admin, 'save_lineup', { p_match_id: id, p_lineup: lineup }), /Start the night first/)
+    const board = [{ player_id: pid(users.Omar), team: 'A' }, { player_id: pid(users.Ziad), team: 'B' }]
+    await expectError(rpc(db, users.admin, 'set_team_board', { p_match_id: id, p_board: board }), /Start the night first/)
     await expectError(
       rpc(db, users.admin, 'log_goal', { p_match_id: id, p_scorer_id: pid(users.Omar), p_assister_id: null }),
       /Start the night/,
     )
     await rpc(db, users.admin, 'start_night', { p_match_id: id })
     await rpc(db, users.admin, 'check_in', { p_match_id: id, p_player_id: pid(users.Omar) })
-    await expectError(rpc(db, users.admin, 'save_lineup', { p_match_id: id, p_lineup: lineup }), /Check in Ziad first/)
+    await expectError(rpc(db, users.admin, 'set_team_board', { p_match_id: id, p_board: board }), /Check in Ziad first/)
 
     await rpc(db, users.admin, 'check_in', { p_match_id: id, p_player_id: pid(users.Ziad) })
     await rpc(db, users.admin, 'check_in', { p_match_id: id, p_player_id: pid(users['محمد']) })
-    await rpc(db, users.admin, 'save_lineup', { p_match_id: id, p_lineup: lineup })
+    await rpc(db, users.admin, 'set_team_board', { p_match_id: id, p_board: board })
     // محمد is on the bench but still part of the night.
-    expect(await selectAs(db, users.Omar, `select player_id from match_players where match_id = $1`, [id])).toHaveLength(3)
+    const rows = await selectAs<{ team: string | null }>(db, users.Omar, `select team from match_players where match_id = $1`, [id])
+    expect(rows.map((r) => r.team).sort()).toEqual(['A', 'B', null])
   })
 })
 

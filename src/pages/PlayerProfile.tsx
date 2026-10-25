@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
-import { ChevronIcon, StarIcon } from '../components/icons'
+import { ChevronIcon, GloveIcon, StarIcon } from '../components/icons'
 import { Avatar, Button, Card, Empty, ErrorNote, Heading, Loading, Name, RatingBadge } from '../components/ui'
 import * as api from '../lib/api'
-import { errorMessage, formatDay } from '../lib/format'
+import { errorMessage, formatDay, formatMinutes } from '../lib/format'
 import type { LeaderboardRow } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
 import { useCurrentGroup } from '../state/group'
@@ -48,6 +48,7 @@ export default function PlayerProfile() {
       </div>
 
       {(isMe || isAdmin) && <RenameForm key={id} playerId={id} current={p.display_name} />}
+      <HappyInGoal playerId={id} happy={p.happy_in_goal} canChange={isMe || isAdmin} />
 
       {loading && !data ? (
         <Loading />
@@ -121,6 +122,12 @@ function StatsCard({ title, row }: { title: string; row: LeaderboardRow | undefi
           </div>
         ))}
       </dl>
+      {row && (
+        <p className="mt-2 text-center text-sm text-muted">
+          {formatMinutes(row.avg_minutes)} a night on average
+          {row.minutes_in_goal > 0 && <> · {formatMinutes(row.minutes_in_goal)} in goal</>}
+        </p>
+      )}
     </Card>
   )
 }
@@ -170,5 +177,56 @@ function RenameForm({ playerId, current }: { playerId: string; current: string }
       </Button>
       <ErrorNote message={error} />
     </form>
+  )
+}
+
+/** Players happy to play in goal are suggested first when a game needs a keeper. */
+function HappyInGoal({ playerId, happy, canChange }: { playerId: string; happy: boolean; canChange: boolean }) {
+  const { refresh } = useCurrentGroup()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!canChange) {
+    return happy ? (
+      <p className="flex items-center gap-1.5 text-sm">
+        <GloveIcon size={18} /> Happy to play in goal
+      </p>
+    ) : null
+  }
+
+  async function toggle() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.setHappyInGoal(playerId, !happy)
+      await refresh()
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={happy}
+        disabled={busy}
+        onClick={() => void toggle()}
+        className="flex min-h-14 w-full items-center gap-3 rounded-card border-[1.5px] border-line bg-paper px-4 py-2 text-left"
+      >
+        <GloveIcon size={22} className="shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Happy to play in goal</span>
+          <span className="block text-xs text-muted">Suggested first when a game needs a goalkeeper.</span>
+        </span>
+        <span aria-hidden className={`h-7 w-12 shrink-0 rounded-full border-2 border-ink p-0.5 ${happy ? 'bg-brand' : 'bg-line'}`}>
+          <span className={`block size-5 rounded-full ${happy ? 'translate-x-5 bg-[#0b0b0b]' : 'bg-ink'}`} />
+        </span>
+      </button>
+      <ErrorNote message={error} />
+    </div>
   )
 }

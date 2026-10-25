@@ -1,4 +1,4 @@
-import type { CancelReason, Match, Team } from './types'
+import type { CancelReason, Match } from './types'
 
 /** 8.3 -> "8.3". Ratings come from the database already rounded. */
 export function formatRating(value: number | null | undefined): string {
@@ -61,6 +61,19 @@ export function formatLength(minutes: number): string {
   return hours ? `${hours} ${m} min` : `${m} min`
 }
 
+/** Seconds as a game clock: 462 -> "07:42", 3725 -> "1:02:05". */
+export function formatClock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(s / 3600)
+  const clock = `${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`
+  return h > 0 ? `${h}:${clock}` : clock
+}
+
+/** 37.6 -> "38 min" */
+export function formatMinutes(minutes: number): string {
+  return `${Math.round(minutes)} min`
+}
+
 /** "6 a side · 2 hours · 600 EGP" */
 export function nightFacts(night: Pick<Match, 'players_per_side' | 'duration_minutes' | 'cost' | 'currency'>): string {
   const parts = [`${night.players_per_side} a side`, formatLength(night.duration_minutes)]
@@ -88,13 +101,6 @@ export function timeLeft(iso: string | null): string {
 
 export function isPast(iso: string | null): boolean {
   return iso != null && new Date(iso).getTime() <= Date.now()
-}
-
-/** Score from goals. Disputed goals do not count. */
-export function scoreOf(goals: { scoring_team: Team; disputed: boolean }[]): Record<Team, number> {
-  const score = { A: 0, B: 0 }
-  for (const g of goals) if (!g.disputed) score[g.scoring_team]++
-  return score
 }
 
 /** Colour band of a rating badge (Design/README.md section 3; classes in index.css). */

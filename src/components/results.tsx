@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import * as api from '../lib/api'
-import { errorMessage, formatPoints, isPast, timeLeft } from '../lib/format'
+import { errorMessage, formatMinutes, formatPoints, isPast, timeLeft } from '../lib/format'
 import type { Match, MatchDetail, MatchRating } from '../lib/types'
 import { useCurrentGroup } from '../state/group'
 import { ChevronIcon, StarIcon } from './icons'
@@ -71,7 +71,7 @@ export function VotingCard({
           </Button>
         </div>
       )}
-      {(iPlayed || isAdmin) && (
+      {isAdmin && (
         <Link to={`/nights/${match.id}/record`} className="mt-3 block text-center text-sm font-semibold text-brand-ink underline">
           Forgot a goal? Log it
         </Link>
@@ -194,8 +194,8 @@ function Breakdown({ rating, detail }: { rating: MatchRating; detail: MatchDetai
     ['Base for playing', b.base],
     [`Goals (${rating.goals})`, b.goals],
     [`Assists (${rating.assists})`, b.assists],
-    [`Team impact (goal difference ${formatPoints(b.net_goal_diff)})`, b.net_goals],
-    ['Result', b.result],
+    [`Team impact (goal difference on the pitch, added up: ${formatPoints(b.net_goal_diff)})`, b.net_goals],
+    [b.minutes != null ? `Result (average over ${formatMinutes(b.minutes)} played)` : 'Result', b.result],
   ]
   if (b.clean_sheets) rows.push([`Clean sheets (${rating.clean_sheets})`, b.clean_sheets])
   if (b.saves) rows.push([`Saves (${rating.saves})`, b.saves])

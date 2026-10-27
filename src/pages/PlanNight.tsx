@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useConfirm, useToast } from '../components/feedback'
+import { PitchMap } from '../components/pitchmap'
 import { Button, ErrorNote, Loading, PageTitle } from '../components/ui'
 import * as api from '../lib/api'
 import { errorMessage, formatLength } from '../lib/format'
+import { coordsFromMapUrl, isGoogleMapsUrl, isShortMapUrl } from '../lib/maplink'
 import { capFor, formFromNight, formToDetails, nightDefaults, withSide } from '../lib/night'
 import type { NightForm } from '../lib/types'
 import { useCurrentGroup } from '../state/group'
@@ -20,6 +22,7 @@ export default function PlanNight() {
   const [form, setForm] = useState<NightForm | null>(null)
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [finding, setFinding] = useState(false)
   const confirm = useConfirm()
   const toast = useToast()
 
@@ -39,6 +42,10 @@ export default function PlanNight() {
 
   async function save() {
     if (!form) return
+    if (form.pitch_url.trim() && !isGoogleMapsUrl(form.pitch_url)) {
+      setError('Paste a Google Maps link.')
+      return
+    }
     setBusy('save')
     setError(null)
     try {
@@ -107,6 +114,7 @@ export default function PlanNight() {
             className={input}
           />
         </label>
+        <PitchLinkField form={form} setForm={setForm} onFinding={setFinding} />
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -208,7 +216,7 @@ export default function PlanNight() {
       <ErrorNote message={error} />
 
       <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-10 mt-4">
-        <Button size="lg" className="w-full" busy={busy === 'save'} onClick={() => void save()}>
+        <Button size="lg" className="w-full" busy={busy === 'save'} disabled={finding} onClick={() => void save()}>
           {id ? 'Save changes' : 'Plan night'}
         </Button>
       </div>
@@ -218,6 +226,75 @@ export default function PlanNight() {
           Delete night
         </Button>
       )}
+    </div>
+  )
+}
+
+/** The pitch's Google Maps link, and the map preview once its position is found. */
+function PitchLinkField({
+  form,
+  setForm,
+  onFinding,
+}: {
+  form: NightForm
+  setForm: Dispatch<SetStateAction<NightForm | null>>
+  onFinding: (finding: boolean) => void
+}) {
+  const [note, setNote] = useState<string | null>(null)
+  const link = form.pitch_url.trim()
+  const needsPosition = link !== '' && form.pitch_lat == null
+
+  // Once a pasted or typed link settles, find the pitch's position in it.
+  useEffect(() => {
+    if (!needsPosition) return
+    let alive = true
+    const timer = window.setTimeout(async () => {
+      if (!isGoogleMapsUrl(link)) {
+        setNote('Paste a Google Maps link.')
+        return
+      }
+      onFinding(true)
+      setNote('Finding the pitch…')
+      const full = isShortMapUrl(link) ? await api.resolveMapLink(link).catch(() => null) : link
+      const position = full ? coordsFromMapUrl(full) : null
+      if (!alive) return
+      onFinding(false)
+      setNote(position ? null : "The link is saved, but there's no map preview for it.")
+      if (position) {
+        setForm((f) => (f && f.pitch_url.trim() === link ? { ...f, pitch_lat: position.lat, pitch_lng: position.lng } : f))
+      }
+    }, 600)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+      onFinding(false)
+    }
+  }, [link, needsPosition, setForm, onFinding])
+
+  const shown = link === '' ? null : form.pitch_lat != null ? 'Pitch found on the map.' : note
+  return (
+    <div className="space-y-2">
+      <label className="block">
+        <span className="text-sm font-medium">Google Maps link</span>
+        <input
+          type="url"
+          inputMode="url"
+          placeholder="https://maps.app.goo.gl/…"
+          value={form.pitch_url}
+          onChange={(e) => {
+            const value = e.target.value
+            setForm((f) => f && { ...f, pitch_url: value, pitch_lat: null, pitch_lng: null })
+          }}
+          className={input}
+        />
+        <span className="mt-1 block text-xs text-muted">In Google Maps: the pitch → Share → Copy link, then paste it here.</span>
+      </label>
+      {shown && (
+        <p role="status" className="text-sm font-semibold">
+          {shown}
+        </p>
+      )}
+      <PitchMap url={link || null} lat={form.pitch_lat} lng={form.pitch_lng} />
     </div>
   )
 }

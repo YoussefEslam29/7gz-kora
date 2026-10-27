@@ -1,7 +1,7 @@
 // The player card (Plans/Player-card-and-motion.md): the self-rating from
 // five skills, and how it compares with what friends give. Pure functions,
 // tested in card.test.ts. Nothing here changes a night's rating.
-import type { CardFields, Foot, LeaderboardRow, Position, Skills } from './types'
+import type { Account, AccountInput, CardFields, CardView, Foot, LeaderboardRow, Position, Skills } from './types'
 
 export const SKILLS: { key: keyof Skills; label: string }[] = [
   { key: 'skill_shooting', label: 'Shooting' },
@@ -48,6 +48,40 @@ export function isCardFilled(card: CardFields): boolean {
     card.favourite_position != null ||
     card.motto != null
   )
+}
+
+/** No self-rating: the five skills cleared. */
+export const NO_SKILLS: Skills = {
+  skill_shooting: null,
+  skill_passing: null,
+  skill_dribbling: null,
+  skill_defending: null,
+  skill_fitness: null,
+}
+
+/** An account in the shape the player card shows. */
+export function accountCard(a: CardView): CardView {
+  return {
+    display_name: a.display_name,
+    avatar_url: a.avatar_url,
+    shirt_number: a.shirt_number,
+    strong_foot: a.strong_foot,
+    favourite_position: a.favourite_position,
+    motto: a.motto,
+    skill_shooting: a.skill_shooting,
+    skill_passing: a.skill_passing,
+    skill_dribbling: a.skill_dribbling,
+    skill_defending: a.skill_defending,
+    skill_fitness: a.skill_fitness,
+    happy_in_goal: a.happy_in_goal,
+    show_stats: a.show_stats,
+  }
+}
+
+/** Everything Edit my card saves, starting from the account. */
+export function accountInput(a: Account): AccountInput {
+  const { avatar_url: _avatar, ...card } = accountCard(a)
+  return { ...card, instapay_phone: a.instapay_phone }
 }
 
 /** The card as it's saved: the motto trimmed, and an empty one as none. */

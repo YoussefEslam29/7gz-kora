@@ -25,7 +25,7 @@ It is a PWA (a website that installs like an app). In a browser the website show
 
 ## 1. What's built so far
 
-**Phase 1** (`Plans/football-idea.md`) and **stages 1 to 3b of the 7GZ-KORA upgrade** (`Plans/README.md`):
+**Phase 1** (`Plans/football-idea.md`) and **stages 1 to 3c of the 7GZ-KORA upgrade** (`Plans/README.md`):
 
 - The 7GZ-KORA look (`Design/README.md`), light and dark mode; Arabic names display correctly
 - **Install first:** in a browser the website shows only the Install screen: the logo, the name, the steps for that phone, and the invite code when opened from an invite link. Sign-in happens inside the installed app. Search engines are kept out, and link previews show only the name and logo.
@@ -39,10 +39,19 @@ It is a PWA (a website that installs like an app). In a browser the website show
 - **End night** opens voting. **Cancel night** (rain, not enough players, pitch problem, other) means nothing counts; a cancellation can be shared to WhatsApp.
 - **Money card:** the cost is split equally among everyone checked in, rounded up to a whole pound ("You owe 47 EGP to Ahmed"). The collector or an admin ticks people off.
 - Voting (1–10, "Didn't see", Man of the Match), ratings with a full breakdown, the season table and player profiles, as in Phase 1.
-- **Player cards:** everyone fills in a card (shirt number, strong foot, favourite position, a motto, and a 1–10 self-rating on shooting, passing, dribbling, defending and fitness), right after joining or later from **Me → Edit my card**. The self-rating never changes a night rating: it's a new player's starting point in Suggest teams, and **Self vs friends** shows it next to what friends give in their votes (Modest, Spot on, Confident or Very confident).
+- **Player cards:** everyone fills in a card (shirt number, strong foot, favourite position, a motto, and a 1–10 self-rating on shooting, passing, dribbling, defending and fitness), from one-by-one questions right after the first sign-in, or later from **your photo (top right) → Edit my card**. The self-rating never changes a night rating: it's a new player's starting point in Suggest teams, and **Self vs friends** shows it next to what friends give in their votes (Modest, Spot on, Confident or Very confident).
 - **Profiles are portfolios:** the card, Self vs friends, a rating history graph (this season or all-time), the last 5 nights' form with an up or down arrow, the best night, the stats, and every night's breakdown.
 - **Lively:** screens slide in, cards and lists follow one after another, numbers count up, a GOAL! splash when an admin logs a goal, the Man of the Match star spins in, and "Saved" messages after every action. Confirmations are the app's own pop-up sheets. With "reduce motion" on the phone, only fades remain.
 - **Admins** change the rating settings under **More → Rating settings → Edit**, and see **More → Change history** (who changed what, and when).
+- **Accounts (stage 3c):** your player card belongs to your account, filled in once from one-question-per-screen sign-up questions, and every group you're in shows it. **Show my stats** off hides your five skills and self-rating from everyone else.
+- **Groups are optional:** without one you see a welcome screen with your card, the public groups, the invite-code box and "Start a group". Joining uses your account name, with no welcome steps.
+- **Group photo and Public / Private** (admins, **More → Group**). Public groups appear in **Find** and anyone signed in joins them with one tap; private groups still need the invite code.
+- **Find** (the search icon at the top): search players by name and open their **account page** (card, totals across all their groups, their public groups). The **Squad** (Table → Squad) shows everyone in the group as a mini card.
+- **Group chat:** text only, live, with a dot on the Chat tab for new messages. Delete your own messages; admins can delete any.
+- **Pitch map:** admins paste the pitch's Google Maps link when planning a night; the night shows a small map that opens Google Maps.
+- **InstaPay number:** the collector adds it on their account; whoever owes them sees it on the money card with a Copy button. The share itself is unchanged.
+- **Home is the group hub:** the group banner, the next night with a countdown and the map, what you owe, voting, your season, last night, the top-3 podium and the latest chat messages.
+- **Faster start:** each screen downloads when it's first opened. The first download went from 683.3 kB (197.7 kB zipped) to 611.6 kB (183.0 kB zipped); most of what's left is React and the Supabase library, which the first screen needs.
 
 **Coming next** (`Plans/README.md`): punishments and loyalty points, Team of the Night and best duos.
 
@@ -71,10 +80,10 @@ You'll create two free accounts (Supabase and Vercel) and set up Google sign-in.
 
 1. In your Supabase project, open **SQL Editor** (left menu), then **New query**.
 2. Open `supabase/migrations/20261023000100_schema.sql` from this folder, copy all of it, paste it into the editor and click **Run**. You should see "Success".
-3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`, then `20261025000100_games.sql`, then `20261025000200_team_suggester.sql`, then `20261025000300_player_card.sql`. **Order matters.**
+3. Do the same with `20261023000200_rating.sql`, then `20261023000300_actions.sql`, then `20261024000100_nights.sql`, then `20261025000100_games.sql`, then `20261025000200_team_suggester.sql`, then `20261025000300_player_card.sql`, then `20261026000100_accounts_groups_chat.sql`. **Order matters.**
 4. (Optional, for trying things out) Run `supabase/seed.sql` too. See [Demo data](#demo-data).
 
-> **Already ran some of the files?** Run only the ones after them, in order, once each. `20261025000100_games.sql` must run when no night is in progress (each existing night becomes one game; their ratings stay as they are). `20261025000200_team_suggester.sql` can run at any time: it adds the "Extra team from N players" setting, 3 for every group. `20261025000300_player_card.sql` can run at any time too: it adds the player card's columns, empty for everyone. **Run them before you push the new version** (every push updates the app on Vercel, and the new app needs them).
+> **Already ran some of the files?** Run only the ones after them, in order, once each. `20261025000100_games.sql` must run when no night is in progress (each existing night becomes one game; their ratings stay as they are). `20261025000200_team_suggester.sql` can run at any time: it adds the "Extra team from N players" setting, 3 for every group. `20261025000300_player_card.sql` can run at any time too: it adds the player card's columns, empty for everyone. `20261026000100_accounts_groups_chat.sql` can run at any time, even during a night: it moves each person's most complete card onto their account, and also creates the `group-images` storage bucket and switches the chat on for Realtime, so there's nothing to click in Storage or Realtime. **Run them before you push the new version** (every push updates the app on Vercel, and the new app needs them).
 
 ### Step 4: Connect the app to Supabase (environment variables)
 
@@ -269,13 +278,13 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 35. **"Extra team from N players"** is under **More → Team suggester**: 2 to 7 in the app (up to 11 in the database). Everyone can see it; admins change it.
 36. **The team board shows each team's average rating**, also while you change teams by hand.
 37. **Players with the same rating** are drafted in name order, so the same players always give the same suggestion.
-38. **Your player card belongs to the group**, like "Happy in goal": someone in two groups fills in two cards. Shirt numbers can repeat.
+38. **Your player card belongs to your account** (since stage 3c): every group you're in shows the same card. Shirt numbers can repeat.
 39. **The five skills are all or nothing**, so every self-rating is the average of the same five things. The card shows the bars as soon as one is set, and the average once all five are.
 40. **The self-rating never changes a night rating.** It's only a new player's starting strength in Suggest teams (kept between 4.5 and 7.5) and the "You say" bar in Self vs friends.
 41. **"Friends give"** is the average of the votes you received: this season's once you're on the table this season, otherwise all-time. The labels change at −1.0 (Modest), +1.0 (Confident) and +2.0 (Very confident).
 42. **The rating history graph** shows finished nights in order, not by date, so a holiday leaves no gap. Its tabs (season or all-time) also change the form and highlights below it.
 43. **The profile photo is still your Google photo.** Uploading photos would need extra storage and isn't planned.
-44. **Welcome after joining** keeps the tabs, so you can leave any time. Skip clears that step. "Not now" on Home's reminder is remembered on that phone only.
+44. **The sign-up questions** come once, right after the first sign-in. Skip clears that question. "Not now" on Home's reminder is remembered on that phone only.
 45. **The GOAL! splash** shows for a goal in the game on now, not for a forgotten goal added later; tap it to close it. Everyone else watching gets a short "Goal for Team A!" message.
 46. **Confirmations are the app's own pop-up sheets.** Cancel is picked first, and the risky button is red.
 47. **Rating settings in the app** cover the four main settings: the stats share (50–90%, in steps of 5), votes needed (0–5), nights to join the table (1–10) and the voting window (6–72 hours). The point values stay in Supabase.
@@ -283,13 +292,38 @@ The brief said to pick the simplest option where it wasn't specific, and to flag
 49. **The animation library (Motion) is pinned to version 14.1.0**, released more than two weeks before this was built. It gets upgraded on purpose later, not by accident.
 50. **The demo players have cards**, one with an Arabic motto. Hany's is empty, so you can see an empty card.
 
+Stage 3c (accounts, groups and chat):
+
+51. **Admins can't edit other people's cards any more**, only their name in the admin's group.
+52. **Hidden stats are hidden for real**, so Suggest teams uses 6.0 for a newcomer who hides their stats.
+53. **Someone an admin removed needs an invite code** to come back to a public group. Someone who left on their own can rejoin with one tap.
+54. **Your InstaPay number is visible to members of your groups**, never in Find or on your account page.
+55. **Account totals add up all your groups** (nights, goals, Man of the Match), as numbers only: rated nights (voting closed), goals in them that aren't disputed, and Man of the Match awards.
+56. **A group photo can be seen by anyone who has its web address.**
+57. **The map helper lives on Vercel** (`/api/map-link`): it only follows Google's short map links and stores nothing. All data stays on Supabase.
+58. **No push notifications** for the chat. The tab's dot shows new messages.
+59. **Leaving the sign-up questions halfway keeps nothing.** They start again next time.
+60. **"Happy in goal" is on** after the move to accounts if it was on in any of your groups.
+61. **The map preview is Google's own embed** (no API key needed). If Google ever stops it, the night falls back to the "Open in Google Maps" button.
+62. **The Squad page is at Table → Squad**, so the Table tab stays lit on it.
+63. **The map helper only returns the full Google address;** the app finds the pitch's position in it.
+64. **One chat connection per open app**, shared by the Chat tab, its dot and Home. After you send, the app re-reads the latest messages, so yours shows even when the live connection is down.
+65. **Deleting a message blanks it** ("Message deleted") instead of removing it.
+66. **To delete a message, tap it**, then **Delete**.
+67. **Your account name** changes only the account (and the name you join new groups with). Your name inside each group stays as it is; change it there (More → Your name in this group).
+68. **Skip on the name question keeps your Google name.**
+69. **Your own profile in a group shows your account's card**, skills included even when hidden, with "Hidden from everyone else" under them.
+70. **What stays in the first download:** the Install screen, sign-in, the sign-up questions, Home (with or without a group), Join or create, and the header and tabs. Every other screen loads when it's first opened.
+71. **Copy on the InstaPay line copies the bare 11 digits** (what InstaPay's "send to mobile number" takes).
+72. **Search lists every account** by account name, 20 at most.
+
 ---
 
 ## 8. Demo data, tests and project layout
 
 ### Demo data
 
-`supabase/seed.sql` creates a group called **Demo FC** with 15 fake players (one with an Arabic name) and nights with several games each: 4 finished nights (one from last year; last week's has three teams, a draw won on penalties, a mid-game swap and a late arrival), a night cancelled for rain, yesterday's night with voting open (with an "End game and swap") and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money; Ali and Mahmoud are happy in goal. Most players have filled in their player card (one Arabic motto, a few very confident self-ratings); Hany hasn't yet. Run it in the SQL Editor after the **seven** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
+`supabase/seed.sql` creates a group called **Demo FC** with 15 fake players (one with an Arabic name) and nights with several games each: 4 finished nights (one from last year; last week's has three teams, a draw won on penalties, a mid-game swap and a late arrival), a night cancelled for rain, yesterday's night with voting open (with an "End game and swap") and 3 people paid back, and a planned night in 3 days with a 10-player limit (10 in, 1 waiting, 1 out), so you can see the waiting list. Ahmed collects the money; Ali and Mahmoud are happy in goal. Most players have filled in their player card (one Arabic motto, a few very confident self-ratings); Hany hasn't yet. Ahmed has an InstaPay number, the planned night has a Google Maps link with a map, and the chat has five messages (one in Arabic). Demo FC is private; switch it to Public in More to see it in Find. Run it in the SQL Editor after the **eight** migration files, then join in the app with the code **`DEMO-KICK`**. As the first person to join, you become its admin.
 
 Ideally use a separate free Supabase project for testing. To remove the demo group later, run this in the SQL Editor:
 
@@ -303,31 +337,38 @@ delete from public.groups where name = 'Demo FC';
 npm test
 ```
 
-This runs 174 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
+This runs 238 tests. Most run against the **real database code**, using PGlite (Postgres running inside Node), so they need no Supabase account or Docker:
 
 - `tests/db/rating.test.ts`: the two worked examples from the brief (Player A 8.3, Player B 5.6), the five night examples from `Plans/Football-scenario.md` (winner stays on, swap and continue, a late arrival, clean sheets, penalties), "End game and swap", a night with no goals, a player who never got on the pitch, a goalkeeper swapped mid-game, the team-impact fix, and the caps, saves, disputed goals, Man of the Match ties and custom weights
 - `tests/db/games.test.ts`: the team board, starting games with goalkeepers, admin-only goals, Game over and penalties, both kinds of swap, subs, adding a forgotten goal, and security
 - `tests/db/migrate.test.ts`: nights from before games moving over, exactly as on the live project
 - `tests/db/teams.test.ts`: the "Extra team from N players" setting: 3 by default, only admins change it, only 2 to 11, and groups from before it get 3
-- `tests/db/card.test.ts`: the player card (empty at first, your own, admins only for others, the ranges, all five skills or none, nothing else changeable, players from before it) and the rating settings (admins only, the weights still add up to 1)
+- `tests/db/card.test.ts`: the player card as file 7 made it (empty at first, the ranges, all five skills or none, players from before it) and the rating settings (admins only, the weights still add up to 1)
+- `tests/db/accounts.test.ts`: the card on the account (the sign-up, the copy in every group, hidden stats never reaching the copy, the checks, the locked card columns on players, private account columns, search, and old cards moving over: the most complete one wins)
+- `tests/db/groups.test.ts`: the group photo and its storage folder rules, Public / Private, the Find list, one-tap joining (and who it refuses), and account pages
+- `tests/db/chat.test.ts`: the group chat (members only, 1 to 500 characters, trimming, deleting, and the Realtime setting)
+- `tests/db/pitch.test.ts`: the pitch link and map position through planning and editing a night
 - `tests/db/nights.test.ts`: planning a night, "I'm in" / "Out" and the waiting list, check-in, ending and cancelling a night, and the money split, including the worked example 600 EGP ÷ 13 players → 47 EGP each
 - `tests/db/flow.test.ts`: groups, invite codes, permissions, a full night from planning to results, secret votes, auto-closing, and admin fixes after closing
 - `tests/db/seed.test.ts`: the demo data loads correctly
-- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts, formatting, the game helpers (next game, minutes, goalkeeper and sub suggestions, the clock), the team suggester (how many teams, fair teams for known ratings, who sits out, players on the pitch staying put), the player card (the self-rating, Self vs friends and its edges), the rating history (form, trend, best night, the graph's scale), the change history sentences, and new players' starting strength
+- `tests/api/map-link.test.ts`: the map helper with a fake Google (following short links, Google addresses only, 5 redirects at most, the time limit)
+- `src/lib/*.test.ts`: the Install-screen decision and device detection, the Plan-a-night defaults, money totals, the WhatsApp texts, formatting, the game helpers (next game, minutes, goalkeeper and sub suggestions, the clock), the team suggester (how many teams, fair teams for known ratings, who sits out, players on the pitch staying put), the player card (the self-rating, Self vs friends and its edges), the rating history (form, trend, best night, the graph's scale), the change history sentences, new players' starting strength, the sign-up questions, the InstaPay number, the photo size, the chat (merging, the new-messages dot, day lines), Google Maps links, the countdown and the podium order
 
 Other commands: `npm run build` (production build), `npm run lint`, `npm run icons` (rebuild the app icons after changing `public/app-icon.svg`).
 
 ### Project layout
 
 ```
-supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4), games + night ratings (5), team suggester setting (6), player card (7)
+supabase/migrations/   The database: tables + security (1), ratings (2), app actions (3), nights (4), games + night ratings (5), team suggester setting (6), player card (7), accounts, groups and chat (8)
 supabase/seed.sql      Demo data
+api/map-link.ts        The map helper (a Vercel function that follows Google's short map links)
 src/lib/               Every call the app makes to Supabase (api.ts), plus small tested helpers
 src/pages/             One file per screen
 src/components/        Shared pieces (buttons, scoreboard, money card, check-in list...)
-src/state/             Who is signed in, and which group they're viewing
+src/state/             Who is signed in, their account, which group they're viewing, and its chat
 public/                Icons (from app-icon.svg), logo.svg (the white mark), robots.txt
 tests/db/              Tests for the database code
+tests/api/             Tests for the map helper
 Design/                The look: tokens, logo files, screens.html
 Plans/                 Everything agreed, and the stage plans in Plans/implementation/
 ```
@@ -357,10 +398,14 @@ Things to know:
 | After Google sign-in you land on the wrong address, or nothing happens | Check **Supabase → Authentication → URL Configuration**: the Site URL and Redirect URLs must include your exact app address. |
 | Friends see "access blocked" or are told the app is in testing | Publish the consent screen (Step 6e). |
 | "Email address not authorized" when asking for a code | Custom SMTP isn't set up yet (section 4, part 1). |
-| "permission denied" or "function ... does not exist" errors | One of the seven SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
+| "permission denied" or "function ... does not exist" errors | One of the eight SQL files wasn't run, or was run out of order. Run them again in order on a fresh project. |
 | "function public.start_game ... does not exist", or the team board and Swap don't work | `20261025000100_games.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
 | "column groups_1.min_extra_team_size does not exist", or the app can't load your group | `20261025000200_team_suggester.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
 | "column players.shirt_number does not exist", or the app can't load your group | `20261025000300_player_card.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
+| "Could not find the function public.my_account", or the app can't load your account | `20261026000100_accounts_groups_chat.sql` hasn't been run yet. Run it in the SQL Editor (section 2, Step 3). |
+| The chat says "Checking for new messages every 10 seconds" | In Supabase, **Database → Publications → supabase_realtime** must include `group_messages` (file 8 adds it). |
+| A group photo won't upload | **Storage** must have the `group-images` bucket (file 8 makes it). Photos over 1 MB after shrinking are refused. |
+| No map preview on a night | The link has no position in it. Paste the link from Google Maps' **Share** button. |
 | A friend can't see the group | They need to join with the invite code (More → Invite code). |
 | The website only shows the Install screen | That's on purpose: sign in from the installed app. For development on a computer, add `VITE_ALLOW_BROWSER=true` to `.env.local`. |
 | The Vercel build fails with "VITE_ALLOW_BROWSER must never be set on Vercel" | Remove that variable from the project's Environment Variables and redeploy. |

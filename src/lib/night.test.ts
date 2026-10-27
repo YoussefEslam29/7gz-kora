@@ -10,6 +10,9 @@ const lastNight: Match = {
   played_at: '2026-10-22',
   starts_at: toStartsAt('2026-10-22', '20:00'),
   location: 'Club pitch 3',
+  pitch_url: 'https://maps.google.com/?q=30.0444,31.2357',
+  pitch_lat: 30.0444,
+  pitch_lng: 31.2357,
   duration_minutes: 120,
   cost: 600,
   currency: 'EGP',
@@ -33,6 +36,9 @@ describe('nightDefaults: "Plan a night" is pre-filled from the last night', () =
       day: '2026-10-24',
       time: '20:00',
       location: '',
+      pitch_url: '',
+      pitch_lat: null,
+      pitch_lng: null,
       duration_minutes: 120,
       cost: 0,
       players_per_side: 6,
@@ -48,6 +54,9 @@ describe('nightDefaults: "Plan a night" is pre-filled from the last night', () =
       day: '2026-10-29',
       time: '20:00',
       location: 'Club pitch 3',
+      pitch_url: 'https://maps.google.com/?q=30.0444,31.2357',
+      pitch_lat: 30.0444,
+      pitch_lng: 31.2357,
       duration_minutes: 120,
       cost: 600,
       players_per_side: 6,
@@ -88,6 +97,18 @@ describe('the Plan a night form', () => {
     expect(withSide(form, 7).player_cap).toBe(21)
     expect(withSide({ ...form, player_cap: 20 }, 7).player_cap).toBe(20)
     expect(withSide({ ...form, player_cap: null }, 7).player_cap).toBeNull()
+  })
+})
+
+describe('formToDetails: the pitch link', () => {
+  it('sends the link with its position, and nothing for an empty link', () => {
+    const form = nightDefaults(lastNight, 'me', new Date(2026, 9, 24, 15, 0))
+    expect(formToDetails(form)).toMatchObject({
+      pitch_url: 'https://maps.google.com/?q=30.0444,31.2357',
+      pitch_lat: 30.0444,
+      pitch_lng: 31.2357,
+    })
+    expect(formToDetails({ ...form, pitch_url: '  ' })).toMatchObject({ pitch_url: null, pitch_lat: null, pitch_lng: null })
   })
 })
 

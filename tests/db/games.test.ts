@@ -276,17 +276,17 @@ describe('games', () => {
 })
 
 describe('goalkeepers and security', () => {
-  it('players say whether they are happy to play in goal; admins can set it for anyone', async () => {
+  it('players say on their account whether they are happy in goal; nobody sets it on a player directly', async () => {
     const { groupId, users, pid } = await setupGroup(db)
     const happy = async (id: string) =>
       (await selectAs<{ happy_in_goal: boolean }>(db, users.admin, `select happy_in_goal from players where id = $1`, [id]))[0]
         .happy_in_goal
-    await selectAs(db, users.Omar, `update players set happy_in_goal = true where id = $1`, [pid(users.Omar)])
+    await rpc(db, users.Omar, 'save_my_account', { p_account: { display_name: 'Omar', happy_in_goal: true } })
     expect(await happy(pid(users.Omar))).toBe(true)
-    await selectAs(db, users.Omar, `update players set happy_in_goal = true where id = $1`, [pid(users.Ziad)])
-    expect(await happy(pid(users.Ziad))).toBe(false) // not Omar's to change
-    await selectAs(db, users.admin, `update players set happy_in_goal = true where id = $1`, [pid(users.Ziad)])
-    expect(await happy(pid(users.Ziad))).toBe(true)
+    await expectError(
+      selectAs(db, users.admin, `update players set happy_in_goal = true where id = $1`, [pid(users.Ziad)]),
+      /permission denied/,
+    )
     await expectError(
       selectAs(db, users.Omar, `update players set group_id = $1 where id = $2`, [groupId, pid(users.Omar)]),
       /permission denied/,

@@ -8,6 +8,7 @@ describe('WhatsApp texts', () => {
     starts_at: toStartsAt('2026-10-29', '20:00'),
     location: 'Club pitch 3',
     players_per_side: 6,
+    pitch_url: null as string | null,
   }
 
   it('a planned night', () => {
@@ -16,6 +17,12 @@ describe('WhatsApp texts', () => {
     )
     expect(plannedNightText({ ...night, location: null }, 0)).toBe(
       "Thursday 29 Oct, 20:00 · 6 a side · 0 in so far. Open 7GZ-KORA to say if you're in.",
+    )
+  })
+
+  it('a planned night with a pitch link adds it on its own line', () => {
+    expect(plannedNightText({ ...night, pitch_url: 'https://maps.app.goo.gl/AbC123' }, 11)).toBe(
+      "Thursday 29 Oct, 20:00 at Club pitch 3 · 6 a side · 11 in so far. Open 7GZ-KORA to say if you're in.\nPitch: https://maps.app.goo.gl/AbC123",
     )
   })
 

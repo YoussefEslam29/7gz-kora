@@ -108,3 +108,15 @@ it('gives every demo player but Hany a player card', async () => {
   // Owner has just joined, so their card is empty too.
   expect(rows.filter((r) => r.skill_shooting === null).map((r) => r.display_name).sort()).toEqual(['Hany', 'Owner'])
 })
+
+it('gives the planned night a map link, Ahmed an InstaPay number and the chat five messages', async () => {
+  const night = (await db.query<{ pitch_url: string; pitch_lat: number }>(
+    `select m.pitch_url, m.pitch_lat from matches m join groups g on g.id = m.group_id
+     where g.name = 'Demo FC' and m.status = 'draft'`,
+  )).rows[0]
+  expect(night).toEqual({ pitch_url: 'https://maps.google.com/?q=30.0444,31.2357', pitch_lat: 30.0444 })
+  const ahmed = (await db.query<{ instapay_phone: string }>(`select instapay_phone from players where display_name = 'Ahmed'`)).rows[0]
+  expect(ahmed.instapay_phone).toBe('01012345678')
+  const chat = (await db.query(`select body from group_messages order by created_at`)).rows
+  expect(chat).toHaveLength(5)
+})

@@ -1,5 +1,5 @@
 // "I'm in" / "Out" for a planned night, and who answered what.
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import * as api from '../lib/api'
 import { errorMessage, formatNightWhen, nightFacts } from '../lib/format'
@@ -18,12 +18,15 @@ export function RsvpCard({
   onChange,
   linkToNight = false,
   showNight = true,
+  children,
 }: {
   match: Match
   rsvps: Rsvp[]
   onChange: () => void
   linkToNight?: boolean
   showNight?: boolean
+  /** Shown under the night's facts (Home: the countdown and the map). */
+  children?: ReactNode
 }) {
   const { myPlayerId, members } = useCurrentGroup()
   const [busy, setBusy] = useState<'in' | 'out' | null>(null)
@@ -66,6 +69,7 @@ export function RsvpCard({
           </div>
           {linkToNight ? <Link to={`/nights/${match.id}`}>{title}</Link> : title}
           <p className="text-[13px] text-muted">{nightFacts(match)}</p>
+          {children}
         </>
       ) : (
         <Heading>Replies</Heading>

@@ -8,6 +8,7 @@ import { GameCard, GamesList } from '../components/games'
 import { GoalList } from '../components/match'
 import { MoneyCard } from '../components/money'
 import { NextGameCard } from '../components/nextgame'
+import { PitchMap } from '../components/pitchmap'
 import { Results, VotingCard } from '../components/results'
 import { RsvpCard, RsvpLists } from '../components/rsvp'
 import { Button, Card, ErrorNote, Heading, LinkButton, Loading, ShareButton, StatusChip } from '../components/ui'
@@ -94,6 +95,11 @@ export default function NightPage() {
           {match.location || 'Pitch to be confirmed'}
         </h1>
         <p className="text-[13px] text-muted">{nightFacts(match)}</p>
+        {match.pitch_url && (
+          <div className="mt-3">
+            <PitchMap url={match.pitch_url} lat={match.pitch_lat} lng={match.pitch_lng} />
+          </div>
+        )}
       </header>
 
       <ErrorNote message={actionError ?? error} />

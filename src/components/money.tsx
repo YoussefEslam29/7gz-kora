@@ -6,12 +6,40 @@ import { Link } from 'react-router'
 import * as api from '../lib/api'
 import { errorMessage } from '../lib/format'
 import { isPaid, moneyTotals } from '../lib/money'
+import { formatPhone } from '../lib/phone'
 import type { Match, Payer } from '../lib/types'
 import { useCurrentGroup } from '../state/group'
 import { Button, Card, ErrorNote, Heading, Name } from './ui'
 
+/** "Pay by InstaPay: 010 1234 5678" with Copy, when the collector added a number. Copy gives the bare 11 digits. */
+export function InstaPayLine({ collectorId }: { collectorId: string | null }) {
+  const { player } = useCurrentGroup()
+  const [copied, setCopied] = useState(false)
+  const phone = player(collectorId)?.instapay_phone
+  if (!phone) return null
+  return (
+    <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-ground px-3 py-2">
+      <p className="text-sm">
+        Pay by InstaPay: <span className="tabular font-display text-lg whitespace-nowrap">{formatPhone(phone)}</span>
+      </p>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() =>
+          void navigator.clipboard
+            .writeText(phone)
+            .then(() => setCopied(true))
+            .catch(() => undefined)
+        }
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </Button>
+    </div>
+  )
+}
+
 export function MoneyCard({ match, payers, onChange }: { match: Match; payers: Payer[]; onChange: () => void }) {
-  const { myPlayerId, isAdmin, playerName } = useCurrentGroup()
+  const { myPlayerId, isAdmin, playerName, player } = useCurrentGroup()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   if (payers.length === 0) return null
@@ -53,6 +81,14 @@ export function MoneyCard({ match, payers, onChange }: { match: Match; payers: P
               You get {t.extra} {cur} more than the pitch costs.
             </p>
           )}
+          {!player(myPlayerId)?.instapay_phone && (
+            <p className="mt-2 text-sm font-semibold">
+              Add your InstaPay number so people can pay you.{' '}
+              <Link to="/me/edit" className="text-brand-ink underline">
+                Add it
+              </Link>
+            </p>
+          )}
         </>
       ) : mine && !isPaid(mine) ? (
         <>
@@ -63,6 +99,7 @@ export function MoneyCard({ match, payers, onChange }: { match: Match; payers: P
           <p className="text-sm">
             to <Name className="font-bold">{collector ?? 'the collector'}</Name> · {amount} ÷ {t.players} players
           </p>
+          <InstaPayLine collectorId={match.collector_player_id} />
         </>
       ) : mine ? (
         <>

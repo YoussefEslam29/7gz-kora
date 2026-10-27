@@ -20,12 +20,33 @@ function siteUrlInHtml(): Plugin {
   }
 }
 
+/** /api/map-link inside `npm run dev` too (on Vercel it's the function in api/map-link.ts). */
+function mapLinkInDev(): Plugin {
+  return {
+    name: 'map-link-in-dev',
+    configureServer(server) {
+      server.middlewares.use('/api/map-link', (req, res) => {
+        void (async () => {
+          const { default: helper } = (await server.ssrLoadModule('/api/map-link.ts')) as {
+            default: { fetch: (request: Request) => Promise<Response> }
+          }
+          const response = await helper.fetch(new Request(new URL(req.url ?? '/', 'http://localhost')))
+          res.statusCode = response.status
+          res.setHeader('content-type', 'application/json')
+          res.end(await response.text())
+        })()
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     siteUrlInHtml(),
+    mapLinkInDev(),
     VitePWA({
       // New versions install themselves; friends get updates on next open.
       registerType: 'autoUpdate',

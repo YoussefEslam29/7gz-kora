@@ -17,9 +17,11 @@
 -- Ahmed (player 3) collects the money every night: 600 EGP split equally.
 -- Ali and Mahmoud are happy to play in goal. "Suggest teams" uses these
 -- nights' ratings; Demo FC makes Team C from 3 players left over (the default).
--- Most players have filled in their player card (Hany hasn't yet).
+-- Most players have filled in their player card (Hany hasn't yet). Ahmed takes
+-- InstaPay, the planned night has a Google Maps link, and the chat has a
+-- few messages.
 --
--- Run it AFTER the 7 migration files, ideally in a separate test project.
+-- Run it AFTER the 8 migration files, ideally in a separate test project.
 -- To see it: sign in to the app, tap "Join a group" and enter  DEMO-KICK
 -- The first real person to join becomes the group's admin.
 --
@@ -254,6 +256,10 @@ begin
   ) as c(n, shirt, foot, pos, motto, s)
   where p.id = v_players[c.n];
 
+  -- Ahmed collects the pitch money and takes InstaPay (Plans/Accounts-groups-and-chat.md section 7).
+  -- The demo players have no accounts, so their group copy is set directly.
+  update public.players set instapay_phone = '01012345678' where id = v_players[3];
+
   -- Last season (shows up in the All-time tab only): B wins two of three.
   v_night := pg_temp.seed_night(v_group, v_players, make_date(v_year - 1, 12, 18), 6, v_twelve, '{}', 'closed');
   perform pg_temp.seed_ab_game(v_night, v_players, 0,  array[1, 2, 3, 4, 5, 6], 5, array[7, 8, 9, 10, 11, 12], 9, array[7, 8]);
@@ -314,9 +320,9 @@ begin
 
   -- In 3 days: planned, limit 10. Players 1-10 are in, 11 is waiting, 12 is out.
   insert into public.matches (group_id, played_at, starts_at, location, cost, collector_player_id,
-                              player_cap, status)
+                              player_cap, status, pitch_url, pitch_lat, pitch_lng)
   values (v_group, current_date + 3, pg_temp.at_pitch(current_date + 3), 'Club pitch 3', 600, v_players[3],
-          10, 'draft')
+          10, 'draft', 'https://maps.google.com/?q=30.0444,31.2357', 30.0444, 31.2357)
   returning id into v_night;
 
   insert into public.rsvps (match_id, player_id, status, status_changed_at, waiting_since)
@@ -325,6 +331,14 @@ begin
          now() - make_interval(hours => 30 - x),
          case when x = 11 then now() - make_interval(hours => 30 - x) end
   from generate_series(1, 12) x;
+
+  -- A few chat messages (Plans/Accounts-groups-and-chat.md section 6).
+  insert into public.group_messages (group_id, player_id, body, created_at)
+  values (v_group, v_players[3], 'Pitch is booked. 600 EGP, pay me after.', now() - interval '26 hours'),
+         (v_group, v_players[2], 'Who has the ball?', now() - interval '25 hours'),
+         (v_group, v_players[1], 'Me. Bibs too.', now() - interval '24 hours 50 minutes'),
+         (v_group, v_players[9], 'يلا بينا', now() - interval '3 hours'),
+         (v_group, v_players[8], 'Might be 10 minutes late, sorry', now() - interval '2 hours');
 
   raise notice 'Demo FC created. Join it in the app with the code DEMO-KICK';
 end;

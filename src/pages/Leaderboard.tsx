@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import * as m from 'motion/react-m'
 import { Link } from 'react-router'
+import { TableTabs } from '../components/tabletabs'
 import { Empty, ErrorNote, Heading, Loading, Name, PageTitle, RatingBadge } from '../components/ui'
 import * as api from '../lib/api'
 import { cascade, cascadeItem } from '../lib/motion'
@@ -40,6 +41,7 @@ export default function Leaderboard() {
 
   return (
     <div>
+      <TableTabs active="table" />
       <PageTitle>Table</PageTitle>
 
       <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1" role="tablist" aria-label="Season">

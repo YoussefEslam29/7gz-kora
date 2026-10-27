@@ -14,6 +14,7 @@ export default function HowItWorks() {
       <NightsExplainer extraTeam={group?.min_extra_team_size ?? 3} />
       {config && <RatingExplainer config={config} />}
       <CardExplainer />
+      <GroupsExplainer />
     </Cascade>
   )
 }
@@ -188,8 +189,14 @@ function CardExplainer() {
       <Heading className="mb-2">Your player card</Heading>
       <ul className="list-disc space-y-1 pl-5 text-sm">
         <li>
-          Fill it in from your profile (<strong>Me → Edit my card</strong>): shirt number, strong foot, favourite position,
-          a motto, and how you rate yourself from 1 to 10 on shooting, passing, dribbling, defending and fitness.
+          Fill it in once, on your account (<strong>your photo, top right → Edit my card</strong>): shirt number, strong
+          foot, favourite position, a motto, and how you rate yourself from 1 to 10 on shooting, passing, dribbling,
+          defending and fitness. <strong>Every group you're in shows the same card.</strong>
+        </li>
+        <li>
+          <strong>Show my stats</strong> off hides your five skills and your self-rating from everyone else. Your night
+          ratings still show in the Table, because they come from real games. With stats hidden, Suggest teams starts
+          you at 6.0 until your first rated night.
         </li>
         <li>
           Your self-rating is the average of the five. <strong>It never changes your night ratings.</strong>
@@ -203,6 +210,37 @@ function CardExplainer() {
           give you in their votes: Modest, Spot on, Confident or Very confident. It's just for fun.
         </li>
         <li>Your favourite position is for show: teams have no fixed positions.</li>
+      </ul>
+    </Card>
+  )
+}
+
+function GroupsExplainer() {
+  return (
+    <Card>
+      <Heading className="mb-2">Groups, chat and the pitch</Heading>
+      <ul className="list-disc space-y-1 pl-5 text-sm">
+        <li>
+          You don't need a group to use the app. <strong>Find</strong> (the search icon at the top) shows the{' '}
+          <strong>public groups</strong>: join one with a single tap. A <strong>private</strong> group needs its invite
+          code. Admins choose Public or Private, and the group photo, in <strong>More</strong>.
+        </li>
+        <li>
+          In Find you can also search players by name and open their account: their card, their totals across all their
+          groups, and their public groups. Nobody sees your email or your phone number there.
+        </li>
+        <li>
+          Every group has a <strong>chat</strong>, text only. Delete your own messages by tapping them; admins can delete
+          any. A dot on the Chat tab means someone wrote since you last looked.
+        </li>
+        <li>
+          Admins paste the pitch's <strong>Google Maps link</strong> when they plan a night: the night shows a small map,
+          and tapping it opens Google Maps.
+        </li>
+        <li>
+          The collector can add an <strong>InstaPay number</strong> on their account. Whoever owes them sees it on the
+          money card, with a Copy button. The share is the same as always: the cost ÷ the players checked in, rounded up.
+        </li>
       </ul>
     </Card>
   )

@@ -8,9 +8,11 @@ import { Cascade, CountUp, Reveal } from '../components/motion'
 import { SelfVsFriends } from '../components/selfvsfriends'
 import { Card, ErrorNote, Heading, LinkButton, Loading, RatingBadge } from '../components/ui'
 import * as api from '../lib/api'
+import { accountCard } from '../lib/card'
 import { formatDay, formatMinutes } from '../lib/format'
 import type { LeaderboardRow } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
+import { useAccount } from '../state/account'
 import { useCurrentGroup } from '../state/group'
 
 /**
@@ -21,6 +23,7 @@ import { useCurrentGroup } from '../state/group'
 export default function PlayerProfile() {
   const { id = '' } = useParams()
   const { group, player, myPlayerId, isAdmin, members, config } = useCurrentGroup()
+  const { account } = useAccount()
   const [year] = useState(() => new Date().getFullYear())
   const p = player(id)
 
@@ -39,6 +42,8 @@ export default function PlayerProfile() {
 
   if (!p) return <ErrorNote message="Player not found." />
   const isMe = id === myPlayerId
+  // Your own card comes from your account, so you see your skills even when they're hidden from others.
+  const shown = isMe && account ? { ...p, ...accountCard(account), display_name: p.display_name } : p
   const isAdminPlayer = members.some((member) => member.player_id === id && member.role === 'admin')
   const role = [isMe ? 'You' : 'Player', isAdminPlayer && 'Admin', !p.user_id && 'no account'].filter(Boolean).join(' · ')
   // The badge in the card: this season's rating, else all-time, else "New" (nothing while loading).
@@ -57,12 +62,24 @@ export default function PlayerProfile() {
 
   return (
     <Cascade className="space-y-4">
-      <PlayerCard player={p} rating={rating} role={role} isMe={isMe} />
-      {(isMe || isAdmin) && (
-        <LinkButton to={`/players/${id}/edit`} variant="secondary" className="w-full">
-          {isMe ? 'Edit my card' : 'Edit card'}
-        </LinkButton>
-      )}
+      <PlayerCard player={shown} rating={rating} role={role} isMe={isMe} />
+      <div className="flex flex-wrap gap-2">
+        {isMe && (
+          <LinkButton to="/me/edit" variant="secondary" className="flex-1">
+            Edit my card
+          </LinkButton>
+        )}
+        {(isMe || isAdmin) && (
+          <LinkButton to={`/players/${id}/edit`} variant="ghost" className="flex-1">
+            Change name
+          </LinkButton>
+        )}
+        {p.user_id && !isMe && (
+          <LinkButton to={`/u/${p.user_id}`} variant="secondary" className="flex-1">
+            Their account
+          </LinkButton>
+        )}
+      </div>
 
       {loading && !data ? (
         <Loading />
@@ -70,7 +87,7 @@ export default function PlayerProfile() {
         <>
           <ErrorNote message={error} onRetry={reload} />
           <SelfVsFriends
-            player={p}
+            player={shown}
             season={data?.season}
             allTime={data?.allTime}
             minNights={config?.min_matches_for_leaderboard ?? 3}

@@ -1,15 +1,18 @@
 // The player card (file 7, supabase/migrations/20261025000300_player_card.sql)
 // and the rating settings admins now change in the app (no database change).
+// It runs files 1 to 7 only: file 8 moves the card onto the account
+// (tests/db/accounts.test.ts).
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { createDb, runMigrations, selectAs, setupGroup } from './helpers'
 
 const FILE_7 = '20261025000300_player_card.sql'
+const FILE_8 = '20261026000100_accounts_groups_chat.sql'
 const SKILLS = 'skill_shooting = 8, skill_passing = 7, skill_dribbling = 8, skill_defending = 6, skill_fitness = 9'
 let db: PGlite
 
 beforeAll(async () => {
-  db = await createDb()
+  db = await createDb({ before: FILE_8 })
 })
 
 afterAll(async () => {
@@ -125,7 +128,7 @@ it('players from before this file get an empty card, as on the live project', as
   try {
     const { rows } = await old.query<{ id: string }>(`insert into groups (name) values ('Old group') returning id`)
     await old.query(`insert into players (group_id, display_name) values ($1, 'Old player')`, [rows[0].id])
-    await runMigrations(old, (file) => file >= FILE_7)
+    await runMigrations(old, (file) => file >= FILE_7 && file < FILE_8)
     const after = await old.query(`select shirt_number, strong_foot, favourite_position, motto, skill_shooting, skill_fitness from players`)
     expect(after.rows).toEqual([EMPTY])
   } finally {

@@ -18,6 +18,9 @@ export function formFromNight(m: Match): NightForm {
     day: m.played_at,
     time: m.starts_at ? clockOf(m.starts_at) : '20:00',
     location: m.location ?? '',
+    pitch_url: m.pitch_url ?? '',
+    pitch_lat: m.pitch_lat,
+    pitch_lng: m.pitch_lng,
     duration_minutes: m.duration_minutes,
     cost: Number(m.cost),
     players_per_side: m.players_per_side,
@@ -30,8 +33,8 @@ export function formFromNight(m: Match): NightForm {
 /**
  * A new night, pre-filled from the last one so planning is usually one tap:
  * the same weekday (the next one from today, or after the last night when
- * that one is still ahead) and start time, and the same pitch, length, cost,
- * side size, collector, game length and player limit.
+ * that one is still ahead) and start time, and the same pitch and its map
+ * link, length, cost, side size, collector, game length and player limit.
  */
 export function nightDefaults(last: Match | null, myPlayerId: string, now: Date): NightForm {
   if (!last) {
@@ -39,6 +42,9 @@ export function nightDefaults(last: Match | null, myPlayerId: string, now: Date)
       day: dayOf(now),
       time: '20:00',
       location: '',
+      pitch_url: '',
+      pitch_lat: null,
+      pitch_lng: null,
       duration_minutes: 120,
       cost: 0,
       players_per_side: 6,
@@ -64,6 +70,10 @@ export function formToDetails(f: NightForm): NightDetails {
     played_at: f.day,
     starts_at: toStartsAt(f.day, f.time),
     location: f.location.trim(),
+    // No link, no position.
+    pitch_url: f.pitch_url.trim() || null,
+    pitch_lat: f.pitch_url.trim() ? f.pitch_lat : null,
+    pitch_lng: f.pitch_url.trim() ? f.pitch_lng : null,
     duration_minutes: f.duration_minutes,
     cost: f.cost,
     players_per_side: f.players_per_side,

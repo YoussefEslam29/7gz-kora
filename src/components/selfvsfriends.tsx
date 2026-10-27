@@ -42,13 +42,15 @@ export function SelfVsFriends({
           {isMe ? (
             <>
               Rate yourself on{' '}
-              <Link to={`/players/${player.id}/edit`} className="font-semibold text-brand-ink underline">
+              <Link to="/me/edit" className="font-semibold text-brand-ink underline">
                 your card
               </Link>{' '}
               to see how it compares with your friends' votes.
             </>
-          ) : (
+          ) : player.show_stats ? (
             'No self-rating yet.'
+          ) : (
+            'Keeps their self-rating private.'
           )}
         </p>
       ) : (

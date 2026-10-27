@@ -22,6 +22,8 @@ export const KEYS = {
   currentGroup: 'kora.currentGroup',
   /** Invite code from a shared link, kept while the person installs and signs in. */
   pendingInvite: 'kora.pendingInvite',
-  /** "Not now" on Home's "Finish your player card", per player: `${key}.${playerId}` = '1'. */
+  /** "Not now" on "Finish your player card", per account: `${key}.${userId}` = '1'. */
   cardReminderHidden: 'kora.cardReminderHidden',
+  /** The newest chat message seen, per group: `${key}.${groupId}` = its created_at. */
+  chatLastRead: 'kora.chatLastRead',
 }

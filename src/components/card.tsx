@@ -3,14 +3,14 @@
 // motto, and the self-rated skills.
 import * as m from 'motion/react-m'
 import { FEET, POSITIONS, SKILLS, selfRating, skillsState } from '../lib/card'
-import type { Player } from '../lib/types'
+import type { CardView } from '../lib/types'
 import { GloveIcon } from './icons'
 import { Avatar, Heading, Name, RatingBadge } from './ui'
 
 /**
  * rating: the badge in the green band (this season's, else all-time) with its
  * label; null shows "New"; undefined (while loading, or a preview) shows none.
- * preview: Edit my card and the Welcome steps (the name isn't the page's heading).
+ * preview: Edit my card and the sign-up (the name isn't the page's heading).
  */
 export function PlayerCard({
   player,
@@ -19,7 +19,7 @@ export function PlayerCard({
   isMe = false,
   preview = false,
 }: {
-  player: Player
+  player: CardView
   rating?: { value: number; label: string } | null
   /** A line under the name, like "You · Admin". */
   role?: string
@@ -81,14 +81,21 @@ export function PlayerCard({
             “<Name>{player.motto}</Name>”
           </p>
         )}
-        <SkillBars player={player} isMe={isMe} />
+        {player.show_stats || isMe ? (
+          <SkillBars player={player} isMe={isMe} />
+        ) : (
+          <p className="mt-4 text-sm font-semibold text-muted">Stats hidden</p>
+        )}
+        {isMe && !player.show_stats && skillsState(player) !== 'none' && (
+          <p className="mt-2 text-xs text-muted">Hidden from everyone else.</p>
+        )}
       </div>
     </m.article>
   )
 }
 
 /** The skills as bars on a 1-10 scale; the self-rating (their average) once all five are set. */
-function SkillBars({ player, isMe }: { player: Player; isMe: boolean }) {
+function SkillBars({ player, isMe }: { player: CardView; isMe: boolean }) {
   if (skillsState(player) === 'none') return null
   const self = selfRating(player)
   return (

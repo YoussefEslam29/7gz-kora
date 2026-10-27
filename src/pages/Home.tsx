@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { ChatPreview, FinishCard, GroupBanner, Podium, SeasonStrip } from '../components/hub'
 import { PlusIcon, StarIcon } from '../components/icons'
 import { Scoreboard } from '../components/match'
-import { RsvpCard } from '../components/rsvp'
-import { Button, Card, Empty, ErrorNote, Heading, LinkButton, Loading, Name, RatingBadge, StatusChip } from '../components/ui'
+import { InstaPayLine } from '../components/money'
 import { Cascade } from '../components/motion'
+import { PitchMap } from '../components/pitchmap'
+import { RsvpCard } from '../components/rsvp'
+import { Card, Empty, ErrorNote, Heading, LinkButton, Loading, Name, RatingBadge, StatusChip } from '../components/ui'
 import * as api from '../lib/api'
-import { isCardFilled } from '../lib/card'
 import { formatDay, timeLeft } from '../lib/format'
 import { gameScore } from '../lib/games'
-import { KEYS, readLocal, writeLocal } from '../lib/storage'
+import { countdown } from '../lib/hub'
 import type { MatchSummary, MoneyOwed } from '../lib/types'
 import { useLoad } from '../lib/useLoad'
+import { useNow } from '../lib/useNow'
 import { useCurrentGroup } from '../state/group'
 
+/** Home, the group hub (Plans/Accounts-groups-and-chat.md section 8). */
 export default function Home() {
   const { group, myPlayerId, isAdmin, playerName, config } = useCurrentGroup()
   const [year] = useState(() => new Date().getFullYear())
@@ -41,15 +45,21 @@ export default function Home() {
   const top3 = board.filter((r) => r.qualified).slice(0, 3)
   const minNights = config?.min_matches_for_leaderboard ?? 3
   const mine = last?.match_ratings.find((r) => r.player_id === myPlayerId)
+  const myRow = board.find((r) => r.player_id === myPlayerId)
 
   return (
     <Cascade className="space-y-4">
+      <GroupBanner />
       <ErrorNote message={error} onRetry={reload} />
 
       {live.map((m) => (
         <LiveNight key={m.id} night={m} />
       ))}
-      {next && <RsvpCard match={next} rsvps={next.rsvps} onChange={reload} linkToNight />}
+      {next && (
+        <RsvpCard match={next} rsvps={next.rsvps} onChange={reload} linkToNight>
+          <NextNightExtras night={next} />
+        </RsvpCard>
+      )}
       {owed.map((o) => (
         <YouOwe key={o.match_id} owed={o} />
       ))}
@@ -68,6 +78,8 @@ export default function Home() {
           <PlusIcon size={20} /> Plan a night
         </LinkButton>
       )}
+
+      <SeasonStrip row={myRow} year={year} />
 
       {last && (
         <Link to={`/nights/${last.id}`} className="block">
@@ -102,29 +114,8 @@ export default function Home() {
         </Link>
       )}
 
-      <Card>
-        <div className="mb-1 flex items-baseline justify-between">
-          <Heading>Season {year} · top 3</Heading>
-          <Link to="/table" className="text-sm font-semibold text-brand-ink">
-            Full table
-          </Link>
-        </div>
-        {top3.length === 0 ? (
-          <p className="text-sm text-muted">The table starts once players have {minNights} rated nights this season.</p>
-        ) : (
-          <ol className="divide-y-[1.5px] divide-line">
-            {top3.map((row, i) => (
-              <li key={row.player_id}>
-                <Link to={`/players/${row.player_id}`} className="flex min-h-12 items-center gap-3 py-2">
-                  <span className="w-5 font-display text-lg text-muted">{i + 1}</span>
-                  <Name className="flex-1 truncate font-bold">{row.display_name}</Name>
-                  <RatingBadge value={row.avg_rating} />
-                </Link>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Card>
+      <Podium rows={top3} year={year} minNights={minNights} />
+      <ChatPreview />
 
       {nights.length === 0 && (
         <Empty title="No nights yet">
@@ -138,6 +129,21 @@ export default function Home() {
         </Link>
       </p>
     </Cascade>
+  )
+}
+
+/** On the next night's card: the countdown and the pitch map. */
+function NextNightExtras({ night }: { night: MatchSummary }) {
+  const now = useNow(30_000)
+  return (
+    <>
+      {night.starts_at && <p className="mt-1 text-sm font-bold">{countdown(night.starts_at, now)}</p>}
+      {night.pitch_url && (
+        <div className="mt-3">
+          <PitchMap url={night.pitch_url} lat={night.pitch_lat} lng={night.pitch_lng} />
+        </div>
+      )}
+    </>
   )
 }
 
@@ -174,26 +180,25 @@ function LiveNight({ night }: { night: MatchSummary }) {
 function YouOwe({ owed }: { owed: MoneyOwed }) {
   const { playerName } = useCurrentGroup()
   return (
-    <Link to={`/nights/${owed.match_id}`} className="block">
-      <Card strong>
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="label">You owe</p>
-            <p className="money">
-              {owed.share} {owed.currency}
-            </p>
-            <p className="text-sm">
-              to{' '}
-              <Name className="font-bold">
-                {owed.collector_player_id ? playerName(owed.collector_player_id) : 'the collector'}
-              </Name>{' '}
-              for {formatDay(owed.played_at)}
-            </p>
-          </div>
-          <span className="chip status voting">Unpaid</span>
+    <Card strong>
+      <Link to={`/nights/${owed.match_id}`} className="flex items-center justify-between gap-2">
+        <div>
+          <p className="label">You owe</p>
+          <p className="money">
+            {owed.share} {owed.currency}
+          </p>
+          <p className="text-sm">
+            to{' '}
+            <Name className="font-bold">
+              {owed.collector_player_id ? playerName(owed.collector_player_id) : 'the collector'}
+            </Name>{' '}
+            for {formatDay(owed.played_at)}
+          </p>
         </div>
-      </Card>
-    </Link>
+        <span className="chip status voting">Unpaid</span>
+      </Link>
+      <InstaPayLine collectorId={owed.collector_player_id} />
+    </Card>
   )
 }
 
@@ -224,36 +229,6 @@ function VotingNow({ night, played, voted }: { night: MatchSummary; played: bool
         <LinkButton to={`/nights/${night.id}`} variant="secondary" className="flex-1">
           Open night
         </LinkButton>
-      </div>
-    </Card>
-  )
-}
-
-/** Until the player card is filled in: a nudge to do it. "Not now" hides it on this phone. */
-function FinishCard() {
-  const { player, myPlayerId } = useCurrentGroup()
-  const key = `${KEYS.cardReminderHidden}.${myPlayerId}`
-  const [hidden, setHidden] = useState(() => readLocal(key) === '1')
-  const me = player(myPlayerId)
-  if (!me || hidden || isCardFilled(me)) return null
-  return (
-    <Card strong>
-      <Heading>Your player card</Heading>
-      <p className="mt-1 font-display text-[22px] leading-tight">Finish your player card</p>
-      <p className="mt-1 text-sm text-muted">Your shirt number, strong foot, favourite position, and how you rate yourself.</p>
-      <div className="mt-3 flex gap-2">
-        <LinkButton to={`/players/${myPlayerId}/edit`} className="flex-1">
-          Set up my card
-        </LinkButton>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            writeLocal(key, '1')
-            setHidden(true)
-          }}
-        >
-          Not now
-        </Button>
       </div>
     </Card>
   )

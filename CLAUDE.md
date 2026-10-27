@@ -21,6 +21,8 @@ A football rating PWA for a group of friends in Egypt (React + Supabase), being 
 - **Text on the brand green `#00BF63` is always black.** White only in the logo lettering.
 - **In a browser, the website shows only the Install screen** (plus `/privacy.html`, which Google needs to publish the sign-in). Sign-in happens only inside the installed app. `VITE_ALLOW_BROWSER=true` is a development-only bypass and must never be set on Vercel.
 - **Names can be Arabic:** use `dir="auto"` or `<bdi>`, and keep them left-aligned in lists.
+- **The player card lives on the account** (`profiles`). Each group's `players` row keeps a copy that only database triggers write; the app never writes card columns on `players`. With Show my stats off, the copy has no skills.
+- **Groups are optional.** Screens that need one sit inside `RequireGroup` (`src/App.tsx`).
 
 ## Environment
 
@@ -28,3 +30,10 @@ A football rating PWA for a group of friends in Egypt (React + Supabase), being 
 - Versions are in `package.json`. Check current library docs (Context7) before using a library API you aren't sure of; several packages are newer than you may expect.
 - Icons are generated with `npx pwa-assets-generator`. The new icon set is in `Design/icons/`.
 - Checks before calling anything done: `npx tsc -b`, `npm run lint`, `npm test` and `npm run build`.
+
+## Tools (MCP servers in `.mcp.json`)
+
+- **supabase**: the live project, **read-only**. Use it to check the real schema, policies, logs and advisors before writing a migration. It can't change anything: the owner still runs every new SQL file in the SQL Editor.
+- **vercel**: deployments, build logs and runtime errors. Check the latest deployment after a push.
+- **playwright**: a browser emulating an iPhone 15. With `VITE_ALLOW_BROWSER=true` in `.env.local` and `npm run dev` running, open `http://localhost:5173` to check screens at phone size, light and dark.
+- Library docs: use Context7 (see "Environment").

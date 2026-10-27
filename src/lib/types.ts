@@ -14,6 +14,10 @@ export interface Group {
   invite_code: string | null
   /** "Extra team from N players": the team suggester makes Team C from this many left over. */
   min_extra_team_size: number
+  /** The group photo in Supabase Storage (the "group-images" bucket), or null. */
+  image_path: string | null
+  /** Public: anyone signed in can find it in Find and join with one tap. */
+  is_public: boolean
 }
 
 export interface Membership {
@@ -52,7 +56,98 @@ export interface Player extends CardFields {
   is_guest: boolean
   /** Suggested first when a game needs a goalkeeper. */
   happy_in_goal: boolean
+  /** Off: this copy has no skills (Plans/Accounts-groups-and-chat.md section 1). */
+  show_stats: boolean
+  /** Where to pay this player by InstaPay when they collect: 11 digits, or null. */
+  instapay_phone: string | null
   avatar_url: string | null
+}
+
+/** What the player card shows: a group's player, an account, or someone's account page. */
+export interface CardView extends CardFields {
+  display_name: string
+  avatar_url: string | null
+  happy_in_goal: boolean
+  show_stats: boolean
+}
+
+/** Your own account (my_account): the card lives here and is copied to every group. */
+export interface Account extends CardFields {
+  id: string
+  email: string | null
+  display_name: string
+  avatar_url: string | null
+  happy_in_goal: boolean
+  show_stats: boolean
+  instapay_phone: string | null
+  /** Set once the sign-up questions are done. */
+  onboarded_at: string | null
+  created_at: string
+}
+
+/** What save_my_account and finish_sign_up take: the whole account at once. */
+export type AccountInput = CardFields &
+  Pick<Account, 'display_name' | 'happy_in_goal' | 'show_stats' | 'instapay_phone'>
+
+/** One of the groups on an account page. */
+export interface AccountGroup {
+  id: string
+  name: string
+  image_path: string | null
+  is_public: boolean
+  /** You're in it too. */
+  i_am_in: boolean
+  /** Their player in this group, when you're in it too (their stats there). */
+  player_id: string | null
+}
+
+/** Someone's account page (get_account). The skills are null when they hide their stats (unless it's you). */
+export interface AccountPage extends CardFields {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  happy_in_goal: boolean
+  show_stats: boolean
+  /** Across all their groups: rated nights, goals that count, Man of the Match awards. */
+  nights: number
+  goals: number
+  mvps: number
+  groups: AccountGroup[]
+}
+
+/** A search result in Find. */
+export interface AccountHit {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  shirt_number: number | null
+  favourite_position: Position | null
+}
+
+/** A public group in Find (list_public_groups). */
+export interface PublicGroup {
+  id: string
+  name: string
+  image_path: string | null
+  members: number
+  /** You're in it already ("Open" instead of "Join"). */
+  i_am_in: boolean
+  /** The next planned night, if any. */
+  next_night_day: string | null
+  next_night_at: string | null
+  next_night_location: string | null
+}
+
+/** One chat message (group_messages). A deleted one has no body. */
+export interface ChatMessage {
+  id: string
+  group_id: string
+  /** The author's player in this group (their name and photo there). */
+  player_id: string
+  user_id: string | null
+  body: string | null
+  created_at: string
+  deleted_at: string | null
 }
 
 export interface Member {
@@ -104,6 +199,10 @@ export interface Match {
   played_at: string
   starts_at: string | null
   location: string | null
+  /** The pitch's Google Maps link, and its position on the map (both or neither). */
+  pitch_url: string | null
+  pitch_lat: number | null
+  pitch_lng: number | null
   duration_minutes: number
   cost: number
   currency: string
@@ -147,6 +246,10 @@ export interface NightDetails {
   played_at: string
   starts_at: string
   location: string
+  /** The pitch's Google Maps link, and its position on the map (both or neither). */
+  pitch_url: string | null
+  pitch_lat: number | null
+  pitch_lng: number | null
   duration_minutes: number
   cost: number
   players_per_side: number
@@ -160,6 +263,10 @@ export interface NightForm {
   day: string
   time: string
   location: string
+  /** The Google Maps link as typed ('' for none), and the position found in it. */
+  pitch_url: string
+  pitch_lat: number | null
+  pitch_lng: number | null
   duration_minutes: number
   cost: number
   players_per_side: number

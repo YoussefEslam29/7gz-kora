@@ -4,10 +4,14 @@
 // which check permissions and return human-readable errors.
 import { supabase } from './supabase'
 import type {
+  Account,
+  AccountHit,
+  AccountInput,
+  AccountPage,
   AuditEntry,
   BoardEntry,
   CancelReason,
-  CardFields,
+  ChatMessage,
   CheckIn,
   Game,
   Goal,
@@ -25,6 +29,7 @@ import type {
   NightDetails,
   Payer,
   Player,
+  PublicGroup,
   RatingAverages,
   RatingConfig,
   RatingSettings,
@@ -52,9 +57,12 @@ async function rpc<T = void>(fn: string, args: Record<string, unknown> = {}): Pr
 // ---------------------------------------------------------------------------
 // Groups and members
 // ---------------------------------------------------------------------------
+/** Everything the app reads about a group. */
+const GROUP_COLUMNS = 'id, name, invite_code, min_extra_team_size, image_path, is_public'
+
 export async function getMemberships(userId: string): Promise<Membership[]> {
   const rows = unwrap<{ role: Role; player_id: string; groups: Group }[]>(
-    await supabase.from('group_members').select('role, player_id, groups(id, name, invite_code, min_extra_team_size)').eq('user_id', userId),
+    await supabase.from('group_members').select(`role, player_id, groups(${GROUP_COLUMNS})`).eq('user_id', userId),
   )
   return rows
     .map((r) => ({ group: r.groups, role: r.role, player_id: r.player_id }))
@@ -90,7 +98,7 @@ export async function setMinExtraTeamSize(groupId: string, size: number) {
 
 /** Everything the app reads about a player, the player card included. */
 const PLAYER_COLUMNS = [
-  'id, group_id, user_id, display_name, is_guest, happy_in_goal',
+  'id, group_id, user_id, display_name, is_guest, happy_in_goal, show_stats, instapay_phone',
   'shirt_number, strong_foot, favourite_position, motto',
   'skill_shooting, skill_passing, skill_dribbling, skill_defending, skill_fitness',
 ].join(', ')
@@ -106,9 +114,9 @@ export async function getPlayers(groupId: string): Promise<Player[]> {
   return rows.map(({ profiles, ...p }) => ({ ...p, avatar_url: profiles?.avatar_url ?? null }))
 }
 
-/** The player card with the name and "happy in goal", in one go: yourself, or anyone if you're an admin. */
-export async function saveCard(playerId: string, card: CardFields & Pick<Player, 'display_name' | 'happy_in_goal'>) {
-  unwrap(await supabase.from('players').update(card).eq('id', playerId))
+/** A player's name in this group: yourself, or anyone if you're an admin. */
+export async function renamePlayer(playerId: string, name: string) {
+  unwrap(await supabase.from('players').update({ display_name: name.trim() }).eq('id', playerId))
 }
 
 export async function getMembers(groupId: string): Promise<Member[]> {
@@ -130,8 +138,117 @@ export async function updateRatingSettings(groupId: string, settings: RatingSett
 export const closeDueMatches = (groupId: string) => rpc<number>('close_due_matches', { p_group_id: groupId })
 
 // ---------------------------------------------------------------------------
+// Your account (Plans/Accounts-groups-and-chat.md section 1)
+// ---------------------------------------------------------------------------
+export const getMyAccount = () => rpc<Account>('my_account')
+
+/** Saves the whole account at once (a field left out is cleared). Every group's copy follows. */
+export const saveMyAccount = (account: AccountInput) => rpc('save_my_account', { p_account: account })
+
+/** The end of the sign-up questions. */
+export const finishSignUp = (account: AccountInput) => rpc('finish_sign_up', { p_account: account })
+
+/** Someone's account page: skills only if they show their stats (or it's you). */
+export const getAccount = (userId: string) => rpc<AccountPage>('get_account', { p_user_id: userId })
+
+/** Find: up to 20 accounts whose name contains the text (2 or more letters). */
+export const searchAccounts = (query: string) => rpc<AccountHit[]>('search_accounts', { p_query: query })
+
+// ---------------------------------------------------------------------------
+// Public groups and group photos (Plans/Accounts-groups-and-chat.md sections 4-5)
+// ---------------------------------------------------------------------------
+const GROUP_IMAGES = 'group-images'
+
+/** The photo's web address (the bucket is public), or null. */
+export function groupImageUrl(path: string | null): string | null {
+  return path ? supabase.storage.from(GROUP_IMAGES).getPublicUrl(path).data.publicUrl : null
+}
+
+export const listPublicGroups = () => rpc<PublicGroup[]>('list_public_groups')
+
+/** One tap: joins a public group with this name (the account's, unless changed). */
+export const joinPublicGroup = (groupId: string, displayName: string) =>
+  rpc<string>('join_public_group', { p_group_id: groupId, p_display_name: displayName })
+
+/** Admins: Public (anyone signed in finds it and joins with one tap) or Private. */
+export async function setGroupPublic(groupId: string, isPublic: boolean) {
+  unwrap(await supabase.from('groups').update({ is_public: isPublic }).eq('id', groupId))
+}
+
+/** Admins: uploads a new group photo (already shrunk), points the group at it, and removes the old one. */
+export async function setGroupPhoto(groupId: string, photo: Blob, oldPath: string | null): Promise<string> {
+  const path = `${groupId}/${crypto.randomUUID()}.jpg`
+  const bucket = supabase.storage.from(GROUP_IMAGES)
+  unwrap(await bucket.upload(path, photo, { contentType: 'image/jpeg' }))
+  unwrap(await supabase.from('groups').update({ image_path: path }).eq('id', groupId))
+  // A leftover old file only takes space, so a failure to remove it is ignored.
+  if (oldPath) await bucket.remove([oldPath])
+  return path
+}
+
+/** Admins: back to the honeycomb with the logo. */
+export async function removeGroupPhoto(groupId: string, path: string) {
+  unwrap(await supabase.from('groups').update({ image_path: null }).eq('id', groupId))
+  await supabase.storage.from(GROUP_IMAGES).remove([path])
+}
+
+/** A group's name, once you're in it (for the welcome message). */
+export async function getGroupName(groupId: string): Promise<string> {
+  return unwrap<{ name: string }>(await supabase.from('groups').select('name').eq('id', groupId).single()).name
+}
+
+// ---------------------------------------------------------------------------
+// The group chat (Plans/Accounts-groups-and-chat.md section 6)
+// ---------------------------------------------------------------------------
+export const CHAT_PAGE = 50
+
+/** A page of the chat, newest first: the latest, or the ones before a time. */
+export async function getMessages(groupId: string, before: string | null): Promise<ChatMessage[]> {
+  let query = supabase.from('group_messages').select('*').eq('group_id', groupId)
+  if (before) query = query.lt('created_at', before)
+  return unwrap(await query.order('created_at', { ascending: false }).limit(CHAT_PAGE))
+}
+
+export async function getMessage(id: string): Promise<ChatMessage | null> {
+  return unwrap(await supabase.from('group_messages').select('*').eq('id', id).maybeSingle())
+}
+
+export const sendMessage = (groupId: string, body: string) =>
+  rpc<string>('send_message', { p_group_id: groupId, p_body: body })
+
+export const deleteMessage = (id: string) => rpc('delete_message', { p_message_id: id })
+
+/**
+ * Calls onChange with a message's id whenever one is sent or deleted in the
+ * group (Supabase Realtime), and onLive with whether the connection is up.
+ * The event is only a signal: the app reads the message itself, through the
+ * normal API. Returns a function that stops listening.
+ */
+export function watchMessages(groupId: string, onChange: (id: string) => void, onLive: (live: boolean) => void) {
+  const filter = `group_id=eq.${groupId}`
+  const changed = (payload: { new: { id?: string } }) => {
+    if (payload.new.id) onChange(payload.new.id)
+  }
+  const channel = supabase
+    .channel(`chat:${groupId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages', filter }, changed)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'group_messages', filter }, changed)
+    .subscribe((status) => onLive(status === 'SUBSCRIBED'))
+  return () => {
+    void supabase.removeChannel(channel)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Nights (rows of the matches table)
 // ---------------------------------------------------------------------------
+/** Follows a Google Maps short link (maps.app.goo.gl/…) to the full address, through /api/map-link. */
+export async function resolveMapLink(url: string): Promise<string | null> {
+  const res = await fetch(`/api/map-link?url=${encodeURIComponent(url)}`)
+  if (!res.ok) return null
+  return ((await res.json()) as { url: string | null }).url
+}
+
 export async function listMatches(groupId: string): Promise<MatchSummary[]> {
   return unwrap(
     await supabase

@@ -1,4 +1,4 @@
-// The fields of the player card, used by Edit my card and the Welcome steps.
+// The fields of the player card, used by Edit my card.
 // Tapping a chosen foot or position again clears it.
 import * as m from 'motion/react-m'
 import { FEET, POSITIONS, SKILLS } from '../lib/card'

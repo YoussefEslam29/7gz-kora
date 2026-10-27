@@ -13,13 +13,15 @@ function longDay(d: Date): string {
 
 /** "Thursday 29 Oct, 20:00 at Club pitch 3 · 6 a side · 11 in so far. Open 7GZ-KORA to say if you're in." */
 export function plannedNightText(
-  night: Pick<Match, 'played_at' | 'starts_at' | 'location' | 'players_per_side'>,
+  night: Pick<Match, 'played_at' | 'starts_at' | 'location' | 'players_per_side' | 'pitch_url'>,
   inCount: number,
 ): string {
   const day = longDay(parseDay(night.played_at))
   const when = night.starts_at ? `${day}, ${clockOf(night.starts_at)}` : day
   const where = night.location ? ` at ${night.location}` : ''
-  return `${when}${where} · ${night.players_per_side} a side · ${inCount} in so far. Open 7GZ-KORA to say if you're in.`
+  const pitch = night.pitch_url ? `
+Pitch: ${night.pitch_url}` : ''
+  return `${when}${where} · ${night.players_per_side} a side · ${inCount} in so far. Open 7GZ-KORA to say if you're in.${pitch}`
 }
 
 const REASON_TEXT = { rain: 'rain', not_enough_players: 'not enough players', pitch_problem: 'pitch problem' }

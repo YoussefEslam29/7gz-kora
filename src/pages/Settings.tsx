@@ -1,26 +1,52 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { useConfirm, type Question } from '../components/feedback'
+import { useConfirm, useToast, type Question } from '../components/feedback'
+import { GroupImage } from '../components/groups'
 import { RatingSettingsCard } from '../components/ratingsettings'
 import { ChevronIcon } from '../components/icons'
-import { Avatar, Button, Card, ErrorNote, Heading, LinkButton, Name, PageTitle } from '../components/ui'
+import { Avatar, Button, Card, ErrorNote, Heading, LinkButton, Name, PageTitle, Toggle } from '../components/ui'
 import { Cascade } from '../components/motion'
 import * as api from '../lib/api'
 import { errorMessage } from '../lib/format'
+import { shrinkPhoto } from '../lib/photo'
 import type { Member } from '../lib/types'
 import { useAuth } from '../state/auth'
-import { useCurrentGroup } from '../state/group'
+import { useCurrentGroup, useGroup } from '../state/group'
 
 /** "Extra team from N players": the choices offered (the database allows 2 to 11). */
 const EXTRA_TEAM_SIZES = [2, 3, 4, 5, 6, 7]
 
 export default function Settings() {
-  const { user, signOut } = useAuth()
-  const { group, isAdmin, members, player, memberships, switchGroup, refresh } = useCurrentGroup()
-  const navigate = useNavigate()
+  const { group } = useGroup()
+  return (
+    <Cascade className="space-y-4">
+      <PageTitle>More</PageTitle>
+      {group && <GroupSettings />}
+      <YourGroups />
+      <RowLink to="/find">Find players and groups</RowLink>
+      <RowLink to="/how-it-works">How it works</RowLink>
+      <AccountActions />
+    </Cascade>
+  )
+}
+
+/** A full-width row that opens another screen. */
+function RowLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="flex min-h-14 items-center justify-between rounded-card border-[1.5px] border-line bg-paper px-4 font-semibold"
+    >
+      {children} <ChevronIcon size={18} />
+    </Link>
+  )
+}
+
+/** Everything about the group you're in. */
+function GroupSettings() {
+  const { isAdmin, members, player, myPlayerId, refresh } = useCurrentGroup()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-
   const confirm = useConfirm()
 
   async function act(name: string, action: () => Promise<unknown>, question?: Question) {
@@ -44,14 +70,11 @@ export default function Settings() {
   )
 
   return (
-    <Cascade className="space-y-4">
-      <PageTitle>More</PageTitle>
+    <>
       <ErrorNote message={error} />
-
       <InviteCard />
-
-      {isAdmin && <RenameGroup />}
-
+      {isAdmin && <GroupCard />}
+      <RowLink to={`/players/${myPlayerId}/edit`}>Your name in this group</RowLink>
       <Card>
         <Heading className="mb-2">Members ({members.length})</Heading>
         <ul className="divide-y divide-line">
@@ -60,25 +83,26 @@ export default function Settings() {
           ))}
         </ul>
       </Card>
-
       <RatingSettingsCard />
-      {isAdmin && (
-        <Link
-          to="/settings/history"
-          className="flex min-h-14 items-center justify-between rounded-card border-[1.5px] border-line bg-paper px-4 font-semibold"
-        >
-          Change history <ChevronIcon size={18} />
-        </Link>
-      )}
+      {isAdmin && <RowLink to="/settings/history">Change history</RowLink>}
       <TeamSuggesterCard />
+    </>
+  )
+}
 
-      <Card>
-        <Heading className="mb-2">Your groups</Heading>
+function YourGroups() {
+  const { group, memberships, switchGroup } = useGroup()
+  return (
+    <Card>
+      <Heading className="mb-2">Your groups</Heading>
+      {memberships.length === 0 ? (
+        <p className="text-sm text-muted">You're not in a group yet.</p>
+      ) : (
         <ul className="divide-y divide-line">
           {memberships.map((m) => (
             <li key={m.group.id} className="flex min-h-12 items-center justify-between gap-2 py-1">
               <Name className="truncate font-medium">{m.group.name}</Name>
-              {m.group.id === group.id ? (
+              {m.group.id === group?.id ? (
                 <span className="text-sm text-muted">Current</span>
               ) : (
                 <Button size="sm" variant="secondary" onClick={() => switchGroup(m.group.id)}>
@@ -88,44 +112,68 @@ export default function Settings() {
             </li>
           ))}
         </ul>
-        <LinkButton to="/join" variant="secondary" className="mt-3 w-full">
-          Join or create another group
-        </LinkButton>
-      </Card>
+      )}
+      <LinkButton to="/join" variant="secondary" className="mt-3 w-full">
+        {memberships.length === 0 ? 'Join or create a group' : 'Join or create another group'}
+      </LinkButton>
+    </Card>
+  )
+}
 
-      <div className="space-y-2 pt-2">
-        <p className="text-center text-sm text-muted">Signed in as {user?.email}</p>
-        <Button variant="secondary" className="w-full" onClick={() => void signOut().then(() => navigate('/'))}>
-          Sign out
-        </Button>
-        <Button
-          variant="danger"
-          className="w-full"
-          busy={busy === 'leave'}
-          onClick={() =>
-            act(
-              'leave',
-              async () => {
-                await api.removeMember(group.id, user!.id)
-                navigate('/')
-              },
-              {
-                title: 'Leave this group?',
-                message: (
-                  <>
-                    Your stats stay in <Name>{group.name}</Name>. You can rejoin with the invite code.
-                  </>
-                ),
-                confirmLabel: 'Leave group',
-                danger: true,
-              },
-            )
-          }
-        >
-          Leave this group
-        </Button>
-      </div>
-    </Cascade>
+function AccountActions() {
+  const { user, signOut } = useAuth()
+  const { group } = useGroup()
+  const navigate = useNavigate()
+  return (
+    <div className="space-y-2 pt-2">
+      <p className="text-center text-sm text-muted">Signed in as {user?.email}</p>
+      <Button variant="secondary" className="w-full" onClick={() => void signOut().then(() => navigate('/'))}>
+        Sign out
+      </Button>
+      {group && <LeaveGroup />}
+    </div>
+  )
+}
+
+function LeaveGroup() {
+  const { group, refresh } = useCurrentGroup()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const confirm = useConfirm()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function leave() {
+    const yes = await confirm({
+      title: 'Leave this group?',
+      message: (
+        <>
+          Your stats stay in <Name>{group.name}</Name>. You can rejoin with the invite code.
+        </>
+      ),
+      confirmLabel: 'Leave group',
+      danger: true,
+    })
+    if (!yes) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.removeMember(group.id, user!.id)
+      await refresh()
+      navigate('/')
+    } catch (e) {
+      setError(errorMessage(e))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <ErrorNote message={error} />
+      <Button variant="danger" className="w-full" busy={busy} onClick={() => void leave()}>
+        Leave this group
+      </Button>
+    </>
   )
 }
 
@@ -236,45 +284,115 @@ function InviteCard() {
   )
 }
 
-function RenameGroup() {
+/** Admins: the group's photo, name and Public / Private switch (Plans/Accounts-groups-and-chat.md section 4). */
+function GroupCard() {
   const { group, refresh } = useCurrentGroup()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [name, setName] = useState(group.name)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'name' | 'photo' | 'public' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
 
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
+  async function run(kind: 'name' | 'photo' | 'public', action: () => Promise<unknown>, done: string) {
+    setBusy(kind)
     setError(null)
     try {
-      await api.renameGroup(group.id, name)
+      await action()
       await refresh()
-    } catch (err) {
-      setError(errorMessage(err))
+      toast(done)
+    } catch (e) {
+      setError(errorMessage(e))
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
+  async function pick(file: File | undefined) {
+    if (!file) return
+    await run('photo', async () => api.setGroupPhoto(group.id, await shrinkPhoto(file), group.image_path), 'Photo saved')
+  }
+
+  async function removePhoto() {
+    const path = group.image_path
+    if (!path) return
+    const yes = await confirm({ title: 'Remove the group photo?', confirmLabel: 'Remove', danger: true })
+    if (yes) await run('photo', () => api.removeGroupPhoto(group.id, path), 'Photo removed')
+  }
+
   return (
-    <Card>
-      <form onSubmit={save}>
-        <Heading className="mb-2">Group name</Heading>
-        <div className="flex gap-2">
+    <Card className="space-y-4">
+      <Heading>Group</Heading>
+      <div>
+        <GroupImage path={group.image_path} className="h-36 w-full rounded-xl" />
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            void pick(e.target.files?.[0])
+            e.target.value = ''
+          }}
+        />
+        <div className="mt-2 flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="flex-1"
+            busy={busy === 'photo'}
+            onClick={() => fileInput.current?.click()}
+          >
+            {group.image_path ? 'Change photo' : 'Add a photo'}
+          </Button>
+          {group.image_path && (
+            <Button size="sm" variant="danger" disabled={busy !== null} onClick={() => void removePhoto()}>
+              Remove
+            </Button>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          Anyone with the photo's web address can see it. Don't use one you wouldn't show strangers.
+        </p>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          void run('name', () => api.renameGroup(group.id, name), 'Name saved')
+        }}
+      >
+        <span className="text-sm font-medium">Group name</span>
+        <div className="mt-1 flex gap-2">
           <input
             value={name}
             required
             maxLength={60}
             dir="auto"
+            aria-label="Group name"
             onChange={(e) => setName(e.target.value)}
             className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-paper px-3 text-base"
           />
-          <Button type="submit" variant="secondary" busy={busy} disabled={name.trim() === group.name || !name.trim()}>
+          <Button
+            type="submit"
+            variant="secondary"
+            busy={busy === 'name'}
+            disabled={name.trim() === group.name || !name.trim()}
+          >
             Save
           </Button>
         </div>
-        <ErrorNote message={error} />
       </form>
+
+      <Toggle
+        checked={group.is_public}
+        onChange={(on) => {
+          if (busy === null) void run('public', () => api.setGroupPublic(group.id, on), on ? 'The group is public' : 'The group is private')
+        }}
+        label="Public group"
+        hint="Anyone signed in can find it in Find and join with one tap. Off: only people with the invite code."
+      />
+      <ErrorNote message={error} />
     </Card>
   )
 }

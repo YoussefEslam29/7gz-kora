@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=rhnxftgbmpycyopwyqyv&read_only=true&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment"
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
+    },
+    "playwright": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@latest", "--device", "iPhone 15", "--isolated"]
+    }
+  }
+}
